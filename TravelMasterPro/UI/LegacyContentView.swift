@@ -20,15 +20,7 @@ struct LegacyContentView: View {
         NavigationStack {
             ZStack {
                 // 背景渐变
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.blue.opacity(0.1),
-                        Color.cyan.opacity(0.05)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                Color.chiikawaWhite.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // 智能状态栏
@@ -68,7 +60,7 @@ struct LegacyContentView: View {
                 ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button(action: { showingQuickActions.toggle() }) {
                         Image(systemName: "sparkles")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.chiikawaPink)
                     }
                 }
                 
@@ -77,12 +69,12 @@ struct LegacyContentView: View {
                         if !chatMessages.isEmpty {
                             Button("清空", action: clearChat)
                                 .font(.caption)
-                                .foregroundColor(.orange)
+                                .foregroundColor(.chiikawaSubText)
                         }
                         
                         NavigationLink(destination: SettingView()) {
                             Image(systemName: "gear")
-                                .foregroundColor(.blue)
+                                .foregroundColor(.chiikawaBlue)
                         }
                     }
                 }
@@ -213,7 +205,7 @@ struct StatusBarView: View {
         HStack {
             HStack(spacing: 8) {
                 Image(systemName: "message.fill")
-                    .foregroundColor(.blue)
+                    .foregroundColor(.chiikawaPink)
                 Text("\(messageCount)条对话")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -227,13 +219,13 @@ struct StatusBarView: View {
                         .scaleEffect(0.8)
                     Text("AI思考中...")
                         .font(.caption)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.chiikawaBlue)
                 }
             }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .background(Color(.systemGray6))
+        .background(Color.chiikawaWhite)
         .animation(.easeInOut, value: isLoading)
     }
 }
@@ -300,7 +292,7 @@ struct WelcomeView: View {
             VStack(spacing: 16) {
                 Image(systemName: "airplane.departure")
                     .font(.system(size: 60))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.chiikawaPink)
                     .scaleEffect(isAnimating ? 1.0 : 1.1)
                     .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: isAnimating)
                 
@@ -315,9 +307,6 @@ struct WelcomeView: View {
             
             // 快捷操作
             VStack(spacing: 12) {
-                Text("🚀 快速开始")
-                    .font(.headline)
-                    .padding(.top)
                 
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
@@ -348,8 +337,9 @@ struct QuickActionCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 8) {
-                Text(action.icon)
+                Image(systemName: action.icon)
                     .font(.title2)
+                    .foregroundColor(.chiikawaBlue)
                 
                 Text(action.title)
                     .font(.caption)
@@ -360,11 +350,11 @@ struct QuickActionCard: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .padding(.horizontal, 8)
-            .background(Color.blue.opacity(0.1))
+            .background(Color.chiikawaPink.opacity(0.1))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.chiikawaPink.opacity(0.3), lineWidth: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -393,7 +383,7 @@ struct InputAreaView: View {
                 Button(action: onQuickActions) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.chiikawaBlue)
                 }
                 
                 TextField("描述您的旅行需求...", text: $userInput, axis: .vertical)
@@ -410,7 +400,7 @@ struct InputAreaView: View {
                 Button(action: onSend) {
                     Image(systemName: isLoading ? "hourglass" : "paperplane.fill")
                         .font(.title2)
-                        .foregroundColor(canSend ? .blue : .gray)
+                        .foregroundColor(canSend ? .chiikawaPink : .gray)
                         .animation(.easeInOut, value: isLoading)
                 }
                 .disabled(!canSend)
@@ -418,7 +408,7 @@ struct InputAreaView: View {
         }
         .padding(.horizontal)
         .padding(.bottom, 8)
-        .background(Color(.systemBackground))
+        .background(Color.chiikawaWhite)
     }
     
     private var canSend: Bool {
@@ -462,8 +452,8 @@ struct SuggestionBarView: View {
                         .font(.caption)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundColor(.blue)
+                        .background(Color.chiikawaBlue.opacity(0.1))
+                        .foregroundColor(.chiikawaBlue)
                         .cornerRadius(16)
                     }
                     
@@ -483,7 +473,7 @@ struct TypingIndicatorView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "brain.head.profile")
-                .foregroundColor(.blue)
+                .foregroundColor(.chiikawaPink)
             
             Text("AI正在思考")
                 .font(.caption)
@@ -492,7 +482,7 @@ struct TypingIndicatorView: View {
             HStack(spacing: 3) {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
-                        .fill(Color.blue)
+                        .fill(Color.chiikawaPink)
                         .frame(width: 6, height: 6)
                         .offset(y: animationOffset)
                         .animation(
@@ -506,7 +496,7 @@ struct TypingIndicatorView: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(Color(.systemGray6))
+        .background(Color.chiikawaWhite)
         .cornerRadius(16)
         .onAppear {
             animationOffset = 10
@@ -593,9 +583,9 @@ struct MessageView: View {
                 // AI头像
                 Image(systemName: message.role.icon)
                     .font(.title3)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.chiikawaPink)
                     .frame(width: 32, height: 32)
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.chiikawaPink.opacity(0.1))
                     .clipShape(Circle())
             }
             
@@ -603,15 +593,16 @@ struct MessageView: View {
                 // 快捷操作标签
                 if let quickAction = message.quickAction {
                     HStack(spacing: 4) {
-                        Text(quickAction.icon)
+                        Image(systemName: quickAction.icon)
                             .font(.caption2)
+                            .foregroundColor(.chiikawaBlue)
                         Text(quickAction.title)
                             .font(.caption2)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.chiikawaBlue)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.chiikawaBlue.opacity(0.1))
                     .cornerRadius(8)
                 }
                 
@@ -662,7 +653,7 @@ struct MessageView: View {
                     .font(.title3)
                     .foregroundColor(.white)
                     .frame(width: 32, height: 32)
-                    .background(Color.blue)
+                    .background(Color.chiikawaBlue)
                     .clipShape(Circle())
             }
         }
@@ -674,9 +665,9 @@ struct MessageView: View {
     private var backgroundColor: Color {
         switch message.role {
         case .user:
-            return .blue
+            return .chiikawaBlue
         case .assistant:
-            return Color(.systemGray5)
+            return .chiikawaWhite
         case .system:
             return Color(.systemGray6)
         }
@@ -707,25 +698,25 @@ struct QuickAction: Identifiable {
     
     static let welcomeActions: [QuickAction] = [
         QuickAction(
-            icon: "✈️",
+            icon: "airplane.departure",
             title: "查找航班",
             text: "帮我查找北京到上海明天的航班",
             category: .flight
         ),
         QuickAction(
-            icon: "🏨",
+            icon: "bed.double.fill",
             title: "预订酒店",
             text: "推荐上海外滩附近性价比高的酒店",
             category: .hotel
         ),
         QuickAction(
-            icon: "🗺️",
+            icon: "map.fill",
             title: "制定路线",
             text: "帮我制定3天2夜的上海旅游路线",
             category: .route
         ),
         QuickAction(
-            icon: "💰",
+            icon: "yensign.circle.fill",
             title: "预算分析",
             text: "分析去日本7天旅游需要多少预算",
             category: .budget
@@ -740,20 +731,20 @@ struct QuickActionsSheet: View {
     
     private let allActions: [QuickAction] = [
         // 行程规划
-        QuickAction(icon: "🎯", title: "制定旅行计划", text: "我想去日本旅游7天，帮我制定详细的行程计划", category: .planning),
-        QuickAction(icon: "⏰", title: "周末游计划", text: "推荐北京周边适合周末游的地方", category: .planning),
+        QuickAction(icon: "calendar.badge.clock", title: "制定旅行计划", text: "我想去日本旅游7天，帮我制定详细的行程计划", category: .planning),
+        QuickAction(icon: "sun.max.fill", title: "周末游计划", text: "推荐北京周边适合周末游的地方", category: .planning),
         
         // 航班相关
-        QuickAction(icon: "✈️", title: "查找航班", text: "帮我查找北京到东京的航班信息", category: .flight),
-        QuickAction(icon: "🎫", title: "特价机票", text: "有什么特价机票推荐吗？", category: .flight),
+        QuickAction(icon: "airplane", title: "查找航班", text: "帮我查找北京到东京的航班信息", category: .flight),
+        QuickAction(icon: "tag.fill", title: "特价机票", text: "有什么特价机票推荐吗？", category: .flight),
         
         // 酒店住宿
-        QuickAction(icon: "🏨", title: "预订酒店", text: "推荐东京市中心性价比高的酒店", category: .hotel),
-        QuickAction(icon: "🏡", title: "民宿推荐", text: "推荐一些有特色的民宿", category: .hotel),
+        QuickAction(icon: "bed.double.fill", title: "预订酒店", text: "推荐东京市中心性价比高的酒店", category: .hotel),
+        QuickAction(icon: "house.fill", title: "民宿推荐", text: "推荐一些有特色的民宿", category: .hotel),
         
         // 预算管理
-        QuickAction(icon: "💰", title: "预算分析", text: "分析去欧洲15天旅游的预算构成", category: .budget),
-        QuickAction(icon: "💳", title: "省钱攻略", text: "有什么旅游省钱的好方法？", category: .budget)
+        QuickAction(icon: "yensign.circle.fill", title: "预算分析", text: "分析去欧洲15天旅游的预算构成", category: .budget),
+        QuickAction(icon: "piggybank.fill", title: "省钱攻略", text: "有什么旅游省钱的好方法？", category: .budget)
     ]
     
     var body: some View {
@@ -782,7 +773,6 @@ struct QuickActionsSheet: View {
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("🚀 快速开始")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -807,11 +797,11 @@ extension QuickAction.Category: CaseIterable {
     
     var title: String {
         switch self {
-        case .planning: return "🎯 行程规划"
-        case .flight: return "✈️ 航班机票"
-        case .hotel: return "🏨 酒店住宿"
-        case .budget: return "💰 预算管理"
-        case .route: return "🗺️ 路线规划"
+        case .planning: return "行程规划"
+        case .flight: return "航班机票"
+        case .hotel: return "酒店住宿"
+        case .budget: return "预算管理"
+        case .route: return "路线规划"
         }
     }
 }

@@ -22,20 +22,21 @@ struct WaypointPlanningView: View {
     }
     
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             // 分日器
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack {
+                HStack(spacing: 12) {
                     ForEach(1...totalDays, id: \.self) { day in
                         Button(action: {
                             selectedDay = day
                             recalculateRoute()
                         }) {
                             Text("Day \(day)")
+                                .chiikawaFont(.subheadline, weight: selectedDay == day ? .bold : .regular)
                                 .padding(.vertical, 8)
                                 .padding(.horizontal, 16)
-                                .background(selectedDay == day ? Color.blue : Color.gray.opacity(0.2))
-                                .foregroundColor(selectedDay == day ? .white : .primary)
+                                .background(selectedDay == day ? Color.chiikawaBlue : Color.chiikawaBlue.opacity(0.1))
+                                .foregroundColor(selectedDay == day ? .white : .chiikawaBlue)
                                 .cornerRadius(20)
                         }
                     }
@@ -47,25 +48,29 @@ struct WaypointPlanningView: View {
                     }) {
                         Image(systemName: "plus")
                             .padding(8)
-                            .background(Color.gray.opacity(0.2))
+                            .background(Color.chiikawaPink.opacity(0.2))
+                            .foregroundColor(.chiikawaPink)
                             .clipShape(Circle())
                     }
                 }
                 .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.vertical, 12)
             }
+            .background(Color.chiikawaWhite)
             
             ZStack(alignment: .topTrailing) {
                 if #available(iOS 17.0, *) {
                     MapReader { proxy in
                         Map(position: $cameraPosition) {
-                            ForEach(currentWaypoints) { node in
-                                Marker(node.name, coordinate: node.clCoordinate)
+                            ForEach(Array(currentWaypoints.enumerated()), id: \.element.id) { index, node in
+                                Annotation(node.name, coordinate: node.clCoordinate) {
+                                    NumberedMarker(number: index + 1)
+                                }
                             }
                             
                             ForEach(calculatedRoutes, id: \.self) { route in
                                 MapPolyline(route)
-                                    .stroke(.blue, lineWidth: 5)
+                                    .stroke(Color.chiikawaBlue, lineWidth: 5)
                             }
                             
                             UserAnnotation()
@@ -78,29 +83,47 @@ struct WaypointPlanningView: View {
                     }
                 } else {
                     Map(position: $cameraPosition) {
-                        ForEach(currentWaypoints) { node in
-                            Marker(node.name, coordinate: node.clCoordinate)
+                        ForEach(Array(currentWaypoints.enumerated()), id: \.element.id) { index, node in
+                            Annotation(node.name, coordinate: node.clCoordinate) {
+                                NumberedMarker(number: index + 1)
+                            }
                         }
                         
                         ForEach(calculatedRoutes, id: \.self) { route in
                             MapPolyline(route)
-                                .stroke(.blue, lineWidth: 5)
+                                .stroke(Color.chiikawaBlue, lineWidth: 5)
                         }
                     }
                 }
             }
             .frame(height: 300)
-            .cornerRadius(12)
+            .cornerRadius(24)
+            .shadow(color: .chiikawaText.opacity(0.1), radius: 8, x: 0, y: 4)
             .padding()
             
             List {
-                Section(header: Text("Day \(selectedDay) 途经点")) {
-                    ForEach(currentWaypoints) { node in
+                Section(header: HStack {
+                    Text("Day \(selectedDay) 途经点")
+                        .chiikawaFont(.headline, weight: .bold)
+                    Spacer()
+                    EditButton() // 开启排序模式
+                        .foregroundColor(.chiikawaPink)
+                }) {
+                    ForEach(Array(currentWaypoints.enumerated()), id: \.element.id) { index, node in
                         HStack {
-                            Image(systemName: "mappin.circle.fill")
-                                .foregroundColor(.red)
+                            // 列表显示对应数字
+                            ZStack {
+                                Circle()
+                                    .fill(Color.chiikawaPink)
+                                    .frame(width: 24, height: 24)
+                                Text("\(index + 1)")
+                                    .foregroundColor(.white)
+                                    .font(.caption.bold())
+                            }
                             Text(node.name)
+                                .chiikawaFont()
                         }
+                        .listRowBackground(Color.white)
                     }
                     .onMove { indices, newOffset in
                         moveWaypoint(from: indices, to: newOffset)
@@ -113,13 +136,18 @@ struct WaypointPlanningView: View {
                 Section {
                     Toggle("闭环路线 (回到起点)", isOn: $route.isLoop)
                         .onChange(of: route.isLoop) { _ in recalculateRoute() }
+                        .tint(.chiikawaPink)
                 }
                 
                 Button(action: { isSearching = true }) {
                     Label("搜索添加地点", systemImage: "magnifyingglass")
+                        .foregroundColor(.chiikawaBlue)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.chiikawaWhite)
         }
+        .background(Color.chiikawaWhite)
         .sheet(isPresented: $isSearching) {
             PlaceSearchSheet(region: searchRegion) { mapItem in
                 let node = TripNode(
@@ -310,5 +338,30 @@ struct PlaceSearchSheet: View {
               let lng = Double(parts[0]),
               let lat = Double(parts[1]) else { return nil }
         return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+    }
+}
+
+// MARK: - 自定义数字标记视图
+struct NumberedMarker: View {
+    let number: Int
+    
+    var body: some View {
+        ZStack {
+            // 白色背景边框
+            Circle()
+                .fill(Color.white)
+                .frame(width: 32, height: 32)
+                .shadow(color: .chiikawaPink.opacity(0.4), radius: 4, x: 0, y: 2)
+            
+            // 红色背景
+            Circle()
+                .fill(Color.chiikawaPink)
+                .frame(width: 26, height: 26)
+            
+            // 数字
+            Text("\(number)")
+                .foregroundColor(.white)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+        }
     }
 }

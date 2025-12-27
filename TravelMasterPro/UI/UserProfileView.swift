@@ -29,10 +29,10 @@ struct UserProfileView: View {
                         // 头像
                         Image(systemName: userAvatar)
                             .font(.system(size: 80))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.chiikawaPink)
                             .background(
                                 Circle()
-                                    .fill(Color.blue.opacity(0.1))
+                                    .fill(Color.chiikawaPink.opacity(0.1))
                                     .frame(width: 100, height: 100)
                             )
                         
@@ -52,7 +52,7 @@ struct UserProfileView: View {
                             showingEditProfile = true
                         }
                         .buttonStyle(.bordered)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.chiikawaBlue)
                     }
                     .padding(.top, 20)
                     
@@ -67,21 +67,21 @@ struct UserProfileView: View {
                                 title: "旅行次数",
                                 value: "\(tripCount)",
                                 icon: "airplane",
-                                color: .blue
+                                color: .chiikawaBlue
                             )
                             
                             StatisticCard(
                                 title: "访问国家",
                                 value: "\(countriesVisited)",
                                 icon: "globe",
-                                color: .green
+                                color: .chiikawaPink
                             )
                             
                             StatisticCard(
                                 title: "旅行天数",
                                 value: "\(totalDays)",
                                 icon: "calendar",
-                                color: .orange
+                                color: .yellow
                             )
                         }
                         .padding(.horizontal)
@@ -101,7 +101,7 @@ struct UserProfileView: View {
                             MenuCard(
                                 title: "我的收藏",
                                 icon: "heart.fill",
-                                color: .red
+                                color: .chiikawaPink
                             ) {
                                 // 跳转到收藏页面
                             }
@@ -109,7 +109,7 @@ struct UserProfileView: View {
                             MenuCard(
                                 title: "旅行记录",
                                 icon: "book.fill",
-                                color: .blue
+                                color: .chiikawaBlue
                             ) {
                                 // 跳转到旅行记录
                             }
@@ -125,7 +125,7 @@ struct UserProfileView: View {
                             MenuCard(
                                 title: "帮助中心",
                                 icon: "questionmark.circle.fill",
-                                color: .green
+                                color: .chiikawaPink
                             ) {
                                 // 跳转到帮助中心
                             }
@@ -207,8 +207,8 @@ struct StatisticCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                .fill(Color.white)
+                .shadow(color: .chiikawaPink.opacity(0.1), radius: 4, x: 0, y: 2)
         )
     }
 }
@@ -236,8 +236,8 @@ struct MenuCard: View {
             .frame(height: 80)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    .fill(Color.white)
+                    .shadow(color: .chiikawaPink.opacity(0.1), radius: 4, x: 0, y: 2)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -254,7 +254,7 @@ struct ActivityRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(.blue)
+                .foregroundColor(.chiikawaBlue)
                 .frame(width: 24, height: 24)
             
             VStack(alignment: .leading, spacing: 2) {
@@ -272,7 +272,7 @@ struct ActivityRow: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
+                .fill(Color.chiikawaWhite)
         )
     }
 }
@@ -309,14 +309,14 @@ struct EditProfileView: View {
                     HStack {
                         Image(systemName: userAvatar)
                             .font(.title)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.chiikawaPink)
                         
                         Spacer()
                         
                         Button("更换头像") {
                             // 头像选择功能
                         }
-                        .foregroundColor(.blue)
+                        .foregroundColor(.chiikawaBlue)
                     }
                 }
             }

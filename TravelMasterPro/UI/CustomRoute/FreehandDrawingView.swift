@@ -21,7 +21,7 @@ struct FreehandDrawingView: View {
                     Map(position: $cameraPosition) {
                         if !drawnPoints.isEmpty {
                             MapPolyline(coordinates: drawnPoints)
-                                .stroke(.blue, lineWidth: 5)
+                                .stroke(Color.chiikawaPink, lineWidth: 5)
                         }
                         UserAnnotation()
                     }
@@ -46,7 +46,7 @@ struct FreehandDrawingView: View {
                     Map(position: $cameraPosition) {
                          if !drawnPoints.isEmpty {
                             MapPolyline(coordinates: drawnPoints)
-                                .stroke(.blue, lineWidth: 5)
+                                .stroke(Color.chiikawaPink, lineWidth: 5)
                         }
                     }
                 }
@@ -61,8 +61,10 @@ struct FreehandDrawingView: View {
                     }) {
                         Label("清除", systemImage: "trash")
                             .padding()
-                            .background(.thinMaterial)
+                            .background(Color.chiikawaWhite)
+                            .foregroundColor(.chiikawaPink)
                             .cornerRadius(10)
+                            .shadow(radius: 2)
                     }
                     .padding()
                 }

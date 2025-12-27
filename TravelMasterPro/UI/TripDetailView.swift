@@ -47,8 +47,8 @@ struct TripDetailView: View {
     
     // 根据天数返回颜色
     var dayColor: Color {
-        guard let day = selectedDay else { return .blue }
-        let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .red]
+        guard let day = selectedDay else { return .chiikawaBlue }
+        let colors: [Color] = [.chiikawaBlue, .chiikawaPink, .chiikawaYellow, .purple, .orange, .green]
         return colors[(day - 1) % colors.count]
     }
     
@@ -72,6 +72,8 @@ struct TripDetailView: View {
                 region: $region
             )
             .frame(height: 250)
+            .cornerRadius(20, corners: [.bottomLeft, .bottomRight]) // 底部圆角
+            .shadow(color: .chiikawaText.opacity(0.1), radius: 5, x: 0, y: 5)
             .onChange(of: selectedDay) { _ in
                 updateMapRegion()
             }
@@ -79,15 +81,16 @@ struct TripDetailView: View {
             // 分日切换器
             if totalDays > 0 {
                 DaySelectorView(selectedDay: $selectedDay, totalDays: totalDays)
+                    .padding(.top, 8)
             }
             
             // 下半部分：卡片列表
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 16) {
                     Text(plan.title)
-                        .font(.title2)
-                        .bold()
-                        .padding()
+                        .chiikawaFont(.title2, weight: .bold)
+                        .padding(.horizontal)
+                        .padding(.top)
                     
                     ForEach(Array(plan.nodes.filter { node in
                         if let day = selectedDay {
@@ -99,11 +102,13 @@ struct TripDetailView: View {
                             .padding(.horizontal)
                     }
                 }
-                .padding(.top)
+                .padding(.bottom, 20)
             }
+            .background(Color.chiikawaWhite) // 背景色
         }
         .navigationTitle(plan.title)
         .navigationBarTitleDisplayMode(.inline)
+        .background(Color.chiikawaWhite)
     }
     
     // 更新地图区域以适应当前显示的节点
@@ -311,7 +316,7 @@ struct DaySelectorView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 // "全部" 按钮
-                DayButton(title: "全部", isSelected: selectedDay == nil) {
+                DayButton(title: "全部", isSelected: selectedDay == nil, color: .chiikawaBlue) {
                     withAnimation {
                         selectedDay = nil
                     }
@@ -319,7 +324,8 @@ struct DaySelectorView: View {
                 
                 // Day 1, Day 2, ...
                 ForEach(1...totalDays, id: \.self) { day in
-                    DayButton(title: "Day \(day)", isSelected: selectedDay == day) {
+                    let color: Color = [.chiikawaBlue, .chiikawaPink, .chiikawaYellow, .purple, .orange, .green][(day - 1) % 6]
+                    DayButton(title: "Day \(day)", isSelected: selectedDay == day, color: color) {
                         withAnimation {
                             selectedDay = day
                         }
@@ -329,25 +335,31 @@ struct DaySelectorView: View {
             .padding(.horizontal)
         }
         .padding(.vertical, 8)
-        .background(Color(uiColor: .systemBackground))
+        .background(Color.chiikawaWhite)
     }
 }
 
 struct DayButton: View {
     let title: String
     let isSelected: Bool
+    let color: Color
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .foregroundColor(isSelected ? .white : .blue)
+                .chiikawaFont(.subheadline, weight: isSelected ? .bold : .regular)
+                .foregroundColor(isSelected ? .white : color)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color.blue : Color.blue.opacity(0.1))
+                        .fill(isSelected ? color : color.opacity(0.1))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(color, lineWidth: 1)
+                        .opacity(isSelected ? 0 : 0.3)
                 )
         }
     }

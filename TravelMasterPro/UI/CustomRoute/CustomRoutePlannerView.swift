@@ -18,28 +18,33 @@ struct CustomRoutePlannerView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 16) {
                 TextField("路线名称", text: $route.title)
-                    .font(.headline)
+                    .chiikawaFont(.headline)
                     .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
+                    .background(Color.chiikawaGray)
+                    .cornerRadius(16)
                     .padding(.horizontal)
+                    .padding(.top)
                 
                 // 仅保留锚点规划模式
                 WaypointPlanningView(route: $route)
             }
+            .background(Color.chiikawaWhite.ignoresSafeArea())
             .navigationTitle("自定义路线")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") { dismiss() }
+                        .foregroundColor(.chiikawaSubText)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("保存") {
                         store.updateRoute(route)
                         dismiss()
                     }
+                    .foregroundColor(.chiikawaPink)
+                    .fontWeight(.bold)
                 }
             }
         }

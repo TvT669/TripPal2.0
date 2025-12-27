@@ -54,7 +54,7 @@ struct SettingView: View {
                                 isApiKeyVisible.toggle()
                             }) {
                                 Image(systemName: isApiKeyVisible ? "eye.slash" : "eye")
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.chiikawaBlue)
                             }
                         }
                         
@@ -256,7 +256,7 @@ struct AboutView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "airplane.departure")
                             .font(.system(size: 80))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.chiikawaPink)
                         
                         Text("TravelMasterPro")
                             .font(.largeTitle)
@@ -279,7 +279,7 @@ struct AboutView: View {
                         FeatureRow(icon: "dollarsign.circle", title: "预算分析", description: "智能预算规划和成本控制")
                     }
                     .padding()
-                    .background(Color(.systemGray6))
+                    .background(Color.chiikawaWhite)
                     .cornerRadius(12)
                     
                     // 版权信息
@@ -318,7 +318,7 @@ struct FeatureRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(.blue)
+                .foregroundColor(.chiikawaBlue)
                 .frame(width: 32)
             
             VStack(alignment: .leading, spacing: 2) {
@@ -383,14 +383,14 @@ struct PolicySection: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.headline)
-                .foregroundColor(.blue)
+                .foregroundColor(.chiikawaBlue)
             
             Text(content)
                 .font(.body)
                 .foregroundColor(.primary)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color.chiikawaWhite)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
     }

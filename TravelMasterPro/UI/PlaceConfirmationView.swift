@@ -18,13 +18,13 @@ struct PlaceConfirmationView: View {
                 // 顶部提示
                 HStack {
                     Image(systemName: "info.circle.fill")
-                        .foregroundColor(.blue)
+                        .foregroundColor(.chiikawaBlue)
                     Text("AI 识别到 \(parsedPlaces.count) 个地点，请核对")
                         .font(.subheadline)
                     Spacer()
                 }
                 .padding()
-                .background(Color.blue.opacity(0.1))
+                .background(Color.chiikawaBlue.opacity(0.1))
                 
                 // 地点列表
                 List {
@@ -32,11 +32,11 @@ struct PlaceConfirmationView: View {
                         HStack {
                             // 左侧图片占位
                             Circle()
-                                .fill(Color.gray.opacity(0.2))
+                                .fill(Color.chiikawaWhite)
                                 .frame(width: 40, height: 40)
                                 .overlay(
                                     Image(systemName: "mappin.and.ellipse")
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(.chiikawaBlue)
                                 )
                             
                             VStack(alignment: .leading) {
@@ -54,13 +54,15 @@ struct PlaceConfirmationView: View {
                             Button(action: { place.isSelected.toggle() }) {
                                 Image(systemName: place.isSelected ? "checkmark.circle.fill" : "circle")
                                     .font(.title2)
-                                    .foregroundColor(place.isSelected ? .blue : .gray)
+                                    .foregroundColor(place.isSelected ? .chiikawaPink : .gray)
                             }
                         }
                         .padding(.vertical, 4)
+                        .listRowBackground(Color.clear)
                     }
                 }
                 .listStyle(.plain)
+                .background(Color.chiikawaWhite)
                 
                 // 底部操作栏
                 VStack(spacing: 12) {
@@ -76,7 +78,7 @@ struct PlaceConfirmationView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.black)
+                        .background(Color.chiikawaPink)
                         .foregroundColor(.white)
                         .cornerRadius(30)
                     }
@@ -90,6 +92,7 @@ struct PlaceConfirmationView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") { dismiss() }
+                        .foregroundColor(.chiikawaBlue)
                 }
             }
         }

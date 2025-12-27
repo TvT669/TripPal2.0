@@ -45,7 +45,7 @@ struct TripEmptyView: View {
         VStack(spacing: 24) {
             Image(systemName: "calendar.badge.plus")
                 .font(.system(size: 60))
-                .foregroundColor(.blue)
+                .foregroundColor(.chiikawaPink)
             
             Text("还没有行程计划")
                 .font(.title2)
@@ -61,13 +61,13 @@ struct TripEmptyView: View {
                     .foregroundColor(.white)
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(Color.blue)
+                    .background(Color.chiikawaPink)
                     .cornerRadius(12)
             }
             .padding(.horizontal, 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
+        .background(Color.chiikawaWhite)
     }
 }
 
@@ -84,7 +84,7 @@ struct TripListView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.chiikawaWhite)
     }
 }
 
@@ -109,7 +109,7 @@ struct TripCard: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text(trip.dateRange)
                         .font(.caption)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.chiikawaBlue)
                     
                     Text("\(trip.duration) 天")
                         .font(.caption)
@@ -130,9 +130,9 @@ struct TripCard: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color.white)
         .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: .chiikawaPink.opacity(0.1), radius: 2, x: 0, y: 1)
     }
 }
 

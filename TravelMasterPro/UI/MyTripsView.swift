@@ -21,83 +21,68 @@ struct MyTripsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                Color.chiikawaWhite.ignoresSafeArea() // Chiikawa 背景色
                 
                 if tripStore.plans.isEmpty && tripStore.customRoutes.isEmpty {
                     // 空状态
-                    VStack {
+                    VStack(spacing: 20) {
                         Image(systemName: "doc.text.viewfinder")
-                            .font(.system(size: 50))
-                            .foregroundColor(.gray)
-                        Text("还没有行程")
-                            .font(.headline)
-                            .padding(.top)
-                        Text("点击右上角，把乱七八糟的攻略丢给我")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 60))
+                            .foregroundColor(.chiikawaBlue)
+                            .padding()
+                            .background(Circle().fill(Color.white).shadow(color: .chiikawaBlue.opacity(0.2), radius: 10))
+                        
+                        Text("还没有行程哦~")
+                            .chiikawaFont(.title2, weight: .bold)
+                        
+                        Text("点击右上角，把乱七八糟的攻略丢给我吧！")
+                            .chiikawaFont(.subheadline)
+                            .foregroundColor(.chiikawaSubText)
                     }
                 } else {
                     // 行程列表
-                    List {
-                        if !tripStore.plans.isEmpty {
-                            Section(header: Text("AI 智能行程")) {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            if !tripStore.plans.isEmpty {
+                                SectionHeaderView(title: "AI 智能行程", icon: "sparkles", color: .chiikawaPink)
+                                
                                 ForEach(tripStore.plans) { plan in
                                     NavigationLink(destination: TripDetailView(plan: plan)) {
-                                        VStack(alignment: .leading) {
-                                            Text(plan.title)
-                                                .font(.headline)
-                                            Text("\(plan.nodes.count) 个地点")
-                                                .font(.subheadline)
-                                                .foregroundColor(.secondary)
-                                            Text(plan.createDate, style: .date)
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                        }
-                                        .padding(.vertical, 4)
+                                        TripListCard(title: plan.title, count: plan.nodes.count, date: plan.createDate, color: .chiikawaPink)
                                     }
                                 }
-                                .onDelete(perform: tripStore.deletePlan)
                             }
-                        }
-                        
-                        if !tripStore.customRoutes.isEmpty {
-                            Section(header: Text("自定义路线")) {
+                            
+                            if !tripStore.customRoutes.isEmpty {
+                                SectionHeaderView(title: "自定义路线", icon: "map", color: .chiikawaBlue)
+                                
                                 ForEach(tripStore.customRoutes) { route in
                                     NavigationLink(destination: CustomRoutePlannerView(route: route).environmentObject(tripStore)) {
-                                        VStack(alignment: .leading) {
-                                            Text(route.title)
-                                                .font(.headline)
-                                            Text("\(route.waypoints.count) 个地点")
-                                                .font(.subheadline)
-                                                .foregroundColor(.secondary)
-                                            Text(route.createDate, style: .date)
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                        }
-                                        .padding(.vertical, 4)
+                                        TripListCard(title: route.title, count: route.waypoints.count, date: route.createDate, color: .chiikawaBlue)
                                     }
                                 }
-                                .onDelete(perform: tripStore.deleteRoute)
                             }
                         }
+                        .padding()
                     }
                 }
                 
                 // 加载状态覆盖层
                 if organizerAgent.isProcessing {
                     ZStack {
-                        Color.black.opacity(0.4).ignoresSafeArea()
-                        VStack {
+                        Color.black.opacity(0.3).ignoresSafeArea()
+                        VStack(spacing: 16) {
                             ProgressView()
                                 .scaleEffect(1.5)
-                                .tint(.white)
+                                .tint(.chiikawaPink)
                             Text(organizerAgent.progressMessage)
+                                .chiikawaFont(.headline)
                                 .foregroundColor(.white)
-                                .padding(.top)
                         }
-                        .padding()
-                        .background(.ultraThinMaterial)
-                        .cornerRadius(10)
+                        .padding(30)
+                        .background(Color.white.opacity(0.9))
+                        .cornerRadius(20)
+                        .shadow(radius: 10)
                     }
                 }
             }
@@ -114,29 +99,31 @@ struct MyTripsView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
+                            .foregroundColor(.chiikawaPink)
                     }
                 }
             }
             .sheet(isPresented: $showInputSheet) {
-                VStack {
+                VStack(spacing: 20) {
                     Text("粘贴你的行程文本")
-                        .font(.headline)
-                        .padding()
+                        .chiikawaFont(.title3, weight: .bold)
+                        .padding(.top)
                     
                     TextEditor(text: $messyInput)
                         .frame(height: 200)
                         .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
-                        .padding()
+                        .background(Color.chiikawaGray)
+                        .cornerRadius(16)
+                        .padding(.horizontal)
                     
                     Button("开始智能识别") {
                         startExtraction()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(ChiikawaPrimaryButtonStyle())
                     .padding()
                 }
                 .presentationDetents([.medium])
+                .background(Color.chiikawaWhite)
             }
             .sheet(isPresented: $showConfirmation) {
                 PlaceConfirmationView(parsedPlaces: $tempParsedPlaces) { confirmedPlaces in
@@ -179,3 +166,59 @@ struct MyTripsView: View {
         }
     }
 }
+
+// MARK: - Chiikawa Style Components
+
+struct SectionHeaderView: View {
+    let title: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(color)
+            Text(title)
+                .chiikawaFont(.headline, weight: .bold)
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
+    }
+}
+
+struct TripListCard: View {
+    let title: String
+    let count: Int
+    let date: Date
+    let color: Color
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .chiikawaFont(.title3, weight: .bold)
+                
+                HStack {
+                    Label("\(count) 个地点", systemImage: "mappin.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(color)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(color.opacity(0.1))
+                        .cornerRadius(8)
+                    
+                    Text(date, style: .date)
+                        .font(.caption)
+                        .foregroundColor(.chiikawaSubText)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .foregroundColor(.chiikawaBorder)
+        }
+        .chiikawaCard()
+    }
+}
+
+

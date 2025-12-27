@@ -18,7 +18,7 @@ struct MainTabView: View {
             LegacyContentView()
                 .environmentObject(appState)
                 .tabItem {
-                    Image(systemName: "brain.head.profile")
+                    Image(systemName: "sparkles")
                     Text("AI 助手")
                 }
                 .tag(0)
@@ -31,7 +31,17 @@ struct MainTabView: View {
                 }
                 .tag(1)
         }
-        .accentColor(.blue)
+        .accentColor(.chiikawaPink) // 使用 Chiikawa 粉色作为强调色
+        .onAppear {
+            // 设置 TabBar 外观
+            let appearance = UITabBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = UIColor(Color.white)
+            appearance.shadowColor = UIColor(Color.chiikawaBorder)
+            
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToMainTab"))) { notification in
             if let tabIndex = notification.object as? Int {
                 withAnimation(.easeInOut(duration: 0.3)) {
