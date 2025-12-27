@@ -15,6 +15,7 @@ struct LegacyContentView: View {
     @State private var showingQuickActions = false
     @State private var selectedQuickAction: QuickAction?
     @FocusState private var isInputFocused: Bool
+    @State private var currentTask: Task<Void, Never>?
     
     var body: some View {
         NavigationStack {
@@ -50,7 +51,8 @@ struct LegacyContentView: View {
                         isLoading: appState.isLoading,
                         isInputFocused: $isInputFocused,
                         onSend: sendMessage,
-                        onQuickActions: { showingQuickActions.toggle() }
+                        onQuickActions: { showingQuickActions.toggle() },
+                        onCancel: cancelRequest
                     )
                 }
             }
@@ -134,9 +136,16 @@ struct LegacyContentView: View {
         isInputFocused = false
         
         // 执行请求
-        Task {
+        currentTask = Task {
             await appState.executeRequest(input)
+            currentTask = nil
         }
+    }
+    
+    private func cancelRequest() {
+        currentTask?.cancel()
+        currentTask = nil
+        appState.cancelRequest()
     }
     
     private func addAssistantMessage(_ content: String) {
@@ -245,7 +254,13 @@ struct ChatAreaView: View {
                         WelcomeView(onQuickAction: onQuickAction)
                     } else {
                         ForEach(messages) { message in
-                            MessageView(message: message)
+                            MessageView(message: message) {
+                                if let index = messages.firstIndex(where: { $0.id == message.id }) {
+                                    withAnimation {
+                                        messages.remove(at: index)
+                                    }
+                                }
+                            }
                                 .id(message.id)
                                 .transition(.asymmetric(
                                     insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -368,6 +383,7 @@ struct InputAreaView: View {
     @FocusState.Binding var isInputFocused: Bool
     let onSend: () -> Void
     let onQuickActions: () -> Void
+    let onCancel: () -> Void
     
     var body: some View {
         VStack(spacing: 8) {
@@ -397,13 +413,19 @@ struct InputAreaView: View {
                         }
                     }
                 
-                Button(action: onSend) {
-                    Image(systemName: isLoading ? "hourglass" : "paperplane.fill")
+                Button(action: {
+                    if isLoading {
+                        onCancel()
+                    } else {
+                        onSend()
+                    }
+                }) {
+                    Image(systemName: isLoading ? "stop.circle.fill" : "paperplane.fill")
                         .font(.title2)
-                        .foregroundColor(canSend ? .chiikawaPink : .gray)
+                        .foregroundColor(isLoading ? .chiikawaPink : (canSend ? .chiikawaPink : .gray))
                         .animation(.easeInOut, value: isLoading)
                 }
-                .disabled(!canSend)
+                .disabled(!canSend && !isLoading)
             }
         }
         .padding(.horizontal)
@@ -412,7 +434,7 @@ struct InputAreaView: View {
     }
     
     private var canSend: Bool {
-        !userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
+        !userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
 
@@ -426,7 +448,7 @@ struct SuggestionBarView: View {
         var suggestions: [String] = []
         
         if lowercased.contains("去") || lowercased.contains("旅游") {
-            suggestions.append("我想去日本旅游，请帮我制定详细计划")
+            suggestions.append("我想去长沙旅游，请帮我制定详细计划")
         }
         if lowercased.contains("机票") || lowercased.contains("航班") {
             suggestions.append("帮我查找北京到上海的航班信息")
@@ -541,16 +563,24 @@ struct DisplayMessage: Identifiable {
 
 struct MessageView: View {
     let message: DisplayMessage
+    let onDelete: () -> Void
     
     /// 清理DSML标记后的内容
     private var cleanedContent: String {
         var content = message.content
         
-        // 移除所有 DSML 相关标记（更全面的模式）
+        // 策略1: 如果检测到 DSML 块的开始，直接截断后面的所有内容
+        // DSML 标记通常出现在消息末尾作为工具调用参数，且在截图中显示为 < | DSML | 格式
+        // 我们匹配 < | DSML | 及其变体
+        if let range = content.range(of: "<\\s*\\|\\s*DSML\\s*\\|", options: .regularExpression) {
+            content = String(content[..<range.lowerBound])
+        }
+        
+        // 策略2: 移除所有 DSML 相关标记（更全面的模式，处理残留或不同格式）
         let dsmlPatterns = [
-            "<\\s*\\|\\s*DSML\\s*\\|[^>]*>",           // < | DSML | ... >
-            "</\\s*\\|\\s*DSML\\s*\\|[^>]*>",          // </ | DSML | ... >
-            "<\\s*\\|\\s*DSML\\s*\\|[^<]*</\\s*\\|\\s*DSML\\s*\\|[^>]*>",  // 完整标签对
+            "<\\s*\\|\\s*DSML\\s*\\|[^>]*>?",           // < | DSML | ... (可选 >)
+            "</\\s*\\|\\s*DSML\\s*\\|[^>]*>?",          // </ | DSML | ... (可选 >)
+            "DSML\\s*\\|",                             // 单独的 DSML |
             "function_calls?",                           // function_call 关键字
             "invoke\\s+name=",                           // invoke name=
             "parameter\\s+name=",                        // parameter name=
@@ -579,6 +609,11 @@ struct MessageView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            // 如果是用户消息，添加 Spacer 将内容推到右侧
+            if message.role == .user {
+                Spacer()
+            }
+            
             if message.role != .user {
                 // AI头像
                 Image(systemName: message.role.icon)
@@ -619,6 +654,10 @@ struct MessageView: View {
                         }) {
                             Label("复制", systemImage: "doc.on.doc")
                         }
+                        
+                        Button(role: .destructive, action: onDelete) {
+                            Label("删除", systemImage: "trash")
+                        }
                     }
                 
                 // 图片显示
@@ -655,6 +694,11 @@ struct MessageView: View {
                     .frame(width: 32, height: 32)
                     .background(Color.chiikawaBlue)
                     .clipShape(Circle())
+            }
+            
+            // 如果是 AI 消息，添加 Spacer 将内容推到左侧
+            if message.role != .user {
+                Spacer()
             }
         }
         // ✅ 修复 padding 语法
@@ -718,7 +762,7 @@ struct QuickAction: Identifiable {
         QuickAction(
             icon: "yensign.circle.fill",
             title: "预算分析",
-            text: "分析去日本7天旅游需要多少预算",
+            text: "分析去长沙7天旅游需要多少预算",
             category: .budget
         )
     ]
@@ -731,20 +775,20 @@ struct QuickActionsSheet: View {
     
     private let allActions: [QuickAction] = [
         // 行程规划
-        QuickAction(icon: "calendar.badge.clock", title: "制定旅行计划", text: "我想去日本旅游7天，帮我制定详细的行程计划", category: .planning),
+        QuickAction(icon: "calendar.badge.clock", title: "制定旅行计划", text: "我想去长沙旅游7天，帮我制定详细的行程计划", category: .planning),
         QuickAction(icon: "sun.max.fill", title: "周末游计划", text: "推荐北京周边适合周末游的地方", category: .planning),
         
         // 航班相关
-        QuickAction(icon: "airplane", title: "查找航班", text: "帮我查找北京到东京的航班信息", category: .flight),
+        QuickAction(icon: "airplane", title: "查找航班", text: "帮我查找北京到长沙的航班信息", category: .flight),
         QuickAction(icon: "tag.fill", title: "特价机票", text: "有什么特价机票推荐吗？", category: .flight),
         
         // 酒店住宿
-        QuickAction(icon: "bed.double.fill", title: "预订酒店", text: "推荐东京市中心性价比高的酒店", category: .hotel),
+        QuickAction(icon: "bed.double.fill", title: "预订酒店", text: "推荐长沙市中心性价比高的酒店", category: .hotel),
         QuickAction(icon: "house.fill", title: "民宿推荐", text: "推荐一些有特色的民宿", category: .hotel),
         
         // 预算管理
-        QuickAction(icon: "yensign.circle.fill", title: "预算分析", text: "分析去欧洲15天旅游的预算构成", category: .budget),
-        QuickAction(icon: "piggybank.fill", title: "省钱攻略", text: "有什么旅游省钱的好方法？", category: .budget)
+        QuickAction(icon: "yensign.circle.fill", title: "预算分析", text: "分析去云南15天旅游的预算构成", category: .budget),
+        QuickAction(icon: "banknote.fill", title: "省钱攻略", text: "有什么旅游省钱的好方法？", category: .budget)
     ]
     
     var body: some View {

@@ -70,7 +70,7 @@ struct WaypointPlanningView: View {
                             
                             ForEach(calculatedRoutes, id: \.self) { route in
                                 MapPolyline(route)
-                                    .stroke(Color.chiikawaBlue, lineWidth: 5)
+                                    .stroke(Color.chiikawaPink, lineWidth: 5)
                             }
                             
                             UserAnnotation()
@@ -91,7 +91,7 @@ struct WaypointPlanningView: View {
                         
                         ForEach(calculatedRoutes, id: \.self) { route in
                             MapPolyline(route)
-                                .stroke(Color.chiikawaBlue, lineWidth: 5)
+                                .stroke(Color.chiikawaPink, lineWidth: 5)
                         }
                     }
                 }

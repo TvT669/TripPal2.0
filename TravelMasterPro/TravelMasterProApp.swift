@@ -118,11 +118,20 @@ class AppState: ObservableObject {
             
             isLoading = false
             
+        } catch is CancellationError {
+            isLoading = false
+            print("⚠️ 请求已取消")
         } catch {
             isLoading = false
             errorMessage = "执行请求失败: \(error.localizedDescription)"
             print("🔍 详细错误: \(error)")
         }
+    }
+    
+    /// 取消当前请求
+    @MainActor
+    func cancelRequest() {
+        isLoading = false
     }
     
     /// 清空对话历史

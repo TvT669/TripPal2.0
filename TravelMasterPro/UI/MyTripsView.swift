@@ -41,30 +41,55 @@ struct MyTripsView: View {
                     }
                 } else {
                     // 行程列表
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            if !tripStore.plans.isEmpty {
-                                SectionHeaderView(title: "AI 智能行程", icon: "sparkles", color: .chiikawaPink)
-                                
+                    List {
+                        if !tripStore.plans.isEmpty {
+                            Section {
                                 ForEach(tripStore.plans) { plan in
-                                    NavigationLink(destination: TripDetailView(plan: plan)) {
+                                    ZStack {
                                         TripListCard(title: plan.title, count: plan.nodes.count, date: plan.createDate, color: .chiikawaPink)
+                                        NavigationLink(destination: TripDetailView(plan: plan)) {
+                                            EmptyView()
+                                        }
+                                        .opacity(0)
                                     }
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
                                 }
-                            }
-                            
-                            if !tripStore.customRoutes.isEmpty {
-                                SectionHeaderView(title: "自定义路线", icon: "map", color: .chiikawaBlue)
-                                
-                                ForEach(tripStore.customRoutes) { route in
-                                    NavigationLink(destination: CustomRoutePlannerView(route: route).environmentObject(tripStore)) {
-                                        TripListCard(title: route.title, count: route.waypoints.count, date: route.createDate, color: .chiikawaBlue)
-                                    }
+                                .onDelete { indexSet in
+                                    tripStore.deletePlan(at: indexSet)
                                 }
+                            } header: {
+                                SectionHeaderView(title: "AI 智能行程", icon: "sparkles", color: .chiikawaPink)
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                                    .background(Color.chiikawaWhite)
                             }
                         }
-                        .padding()
+                        
+                        if !tripStore.customRoutes.isEmpty {
+                            Section {
+                                ForEach(tripStore.customRoutes) { route in
+                                    ZStack {
+                                        TripListCard(title: route.title, count: route.waypoints.count, date: route.createDate, color: .chiikawaBlue)
+                                        NavigationLink(destination: CustomRoutePlannerView(route: route).environmentObject(tripStore)) {
+                                            EmptyView()
+                                        }
+                                        .opacity(0)
+                                    }
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                                }
+                                .onDelete { indexSet in
+                                    tripStore.deleteRoute(at: indexSet)
+                                }
+                            } header: {
+                                SectionHeaderView(title: "自定义路线", icon: "map", color: .chiikawaBlue)
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                                    .background(Color.chiikawaWhite)
+                            }
+                        }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
                 
                 // 加载状态覆盖层

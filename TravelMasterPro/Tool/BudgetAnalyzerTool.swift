@@ -360,18 +360,18 @@ class BudgetCalculator {
         let destination = destination.lowercased()
         
         switch true {
-        case destination.contains("日本") || destination.contains("japan"):
-            return 1.3
-        case destination.contains("韩国") || destination.contains("korea"):
-            return 0.9
-        case destination.contains("泰国") || destination.contains("thailand"):
-            return 0.6
-        case destination.contains("新加坡") || destination.contains("singapore"):
-            return 1.2
-        case destination.contains("美国") || destination.contains("usa"):
+        case destination.contains("香港") || destination.contains("hongkong"):
+            return 1.5
+        case destination.contains("澳门") || destination.contains("macau"):
             return 1.4
-        case destination.contains("欧洲") || destination.contains("europe"):
+        case destination.contains("三亚") || destination.contains("sanya"):
             return 1.3
+        case destination.contains("上海") || destination.contains("shanghai"):
+            return 1.2
+        case destination.contains("北京") || destination.contains("beijing"):
+            return 1.2
+        case destination.contains("西藏") || destination.contains("tibet"):
+            return 1.1
         default:
             return 1.0
         }

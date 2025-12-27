@@ -16,6 +16,7 @@ struct TripNode: Identifiable, Codable {
     var startTime: Date?    // 建议游玩时间
     var day: Int?           // 所属天数 (Day 1, Day 2, etc.)
     var coordinate: Coordinate // 自定义坐标结构以支持 Codable
+    var imageData: Data?    // 图片数据
     
     struct Coordinate: Codable {
         let latitude: Double
@@ -27,13 +28,14 @@ struct TripNode: Identifiable, Codable {
     }
     
     // 辅助初始化器
-    init(id: UUID = UUID(), name: String, description: String, startTime: Date? = nil, day: Int? = nil, coordinate: Coordinate) {
+    init(id: UUID = UUID(), name: String, description: String, startTime: Date? = nil, day: Int? = nil, coordinate: Coordinate, imageData: Data? = nil) {
         self.id = id
         self.name = name
         self.description = description
         self.startTime = startTime
         self.day = day
         self.coordinate = coordinate
+        self.imageData = imageData
     }
 }
 

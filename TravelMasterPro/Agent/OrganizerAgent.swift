@@ -39,11 +39,11 @@ class OrganizerAgent: ObservableObject {
     
     JSON 格式示例：
     {
-        "title": "东京三日游",
+        "title": "长沙三日游",
         "nodes": [
             {
-                "name": "浅草寺",
-                "description": "参观雷门，吃人形烧",
+                "name": "岳麓书院",
+                "description": "参观书院，感受千年学府",
                 "time": "10:00" 
             }
         ]
