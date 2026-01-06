@@ -77,6 +77,7 @@ struct MessageMetadata: Codable, Equatable {
     var toolCallId: String?
     var toolName: String?
     var toolArguments: [String: String]?
+    var allToolCalls: [ToolCall]? // ✅ 新增：支持多个工具调用
     
     // 媒体相关
     var attachments: [MessageAttachment]?
@@ -299,11 +300,11 @@ extension Message {
 // MARK: - 工具调用相关（保持不变）
 
 /// 工具调用
-struct ToolCall: Identifiable, Codable {
+struct ToolCall: Identifiable, Codable, Equatable {
     let id: String
     let function: ToolFunction
     
-    struct ToolFunction: Codable {
+    struct ToolFunction: Codable, Equatable {
         let name: String
         let arguments: [String: String] // 简化为 String 类型
     }
@@ -402,7 +403,12 @@ extension MessageMetadata {
     // ✅ 添加工具调用相关属性
     var toolCalls: [ToolCall]? {
         get {
-            // 从现有的 toolName 和 toolArguments 构造 ToolCall
+            // 优先返回完整的工具调用列表
+            if let calls = allToolCalls {
+                return calls
+            }
+            
+            // 兼容旧数据：从现有的 toolName 和 toolArguments 构造 ToolCall
             if let name = toolName, let args = toolArguments {
                 return [ToolCall(
                     id: toolCallId ?? UUID().uuidString,
@@ -412,6 +418,9 @@ extension MessageMetadata {
             return nil
         }
         set {
+            allToolCalls = newValue
+            
+            // 保持向后兼容
             if let toolCall = newValue?.first {
                 toolCallId = toolCall.id
                 toolName = toolCall.function.name

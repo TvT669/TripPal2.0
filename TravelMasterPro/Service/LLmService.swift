@@ -887,8 +887,20 @@ extension LLMService {
             )
             
             // 返回包含工具结果的最终响应
+            // ✅ 修复：如果最终响应为空或包含未完成的 DSML 标记，则回退到显示工具结果
+            var finalContent = finalResponse.content ?? ""
+            // 检查是否包含 DSML 标记（包括全角/半角，截断情况）
+            let hasDSMLGarbage = finalContent.range(of: "<\\s*[\\|｜]\\s*DSML", options: .regularExpression) != nil
+            
+            if finalContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasDSMLGarbage {
+                // 如果有工具结果，优先显示工具结果
+                if !allToolResults.isEmpty {
+                    finalContent = allToolResults.joined(separator: "\n\n")
+                }
+            }
+            
             return LLMResponse(
-                content: finalResponse.content ?? allToolResults.joined(separator: "\n\n"),
+                content: finalContent,
                 toolCalls: nil,
                 usage: finalResponse.usage
             )

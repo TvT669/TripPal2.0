@@ -132,6 +132,21 @@ override func executeImpl(arguments: [String: Any]) async throws -> ToolResult {
         return errorResult("出发日期格式错误，请使用 YYYY-MM-DD 格式，如：2025-09-03")
     }
     
+    // ✅ 自动修正过去日期
+    var finalDepartureDate = departureDate
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateFormat = "yyyy-MM-dd"
+    if let date = dateFormatter.date(from: departureDate) {
+        let today = Date()
+        // 如果日期在今天之前（忽略时分秒），则尝试加一年
+        if date < Calendar.current.startOfDay(for: today) {
+            if let nextYearDate = Calendar.current.date(byAdding: .year, value: 1, to: date) {
+                finalDepartureDate = dateFormatter.string(from: nextYearDate)
+                print("⚠️ 检测到过去日期 \(departureDate)，自动修正为明年: \(finalDepartureDate)")
+            }
+        }
+    }
+    
     let adults = Int(getNumber("adults", from: arguments) ?? 1)
     let travelClass = getString("travel_class", from: arguments) ?? "ECONOMY"
     let maxPrice = getNumber("max_price", from: arguments)
@@ -144,7 +159,7 @@ override func executeImpl(arguments: [String: Any]) async throws -> ToolResult {
         let searchResult = try await amadeus.searchFlights(
             origin: origin,
             destination: destination,
-            departureDate: departureDate,
+            departureDate: finalDepartureDate,
             returnDate: returnDate,
             adults: adults,
             travelClass: travelClass

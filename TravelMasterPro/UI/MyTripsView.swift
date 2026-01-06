@@ -9,7 +9,7 @@ import SwiftUI
 import MapKit
 
 struct MyTripsView: View {
-    @StateObject private var tripStore = TripStore()
+    @EnvironmentObject var tripStore: TripStore
     @StateObject private var organizerAgent = OrganizerAgent()
     
     @State private var showInputSheet = false

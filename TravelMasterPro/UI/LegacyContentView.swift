@@ -74,10 +74,7 @@ struct LegacyContentView: View {
                                 .foregroundColor(.chiikawaSubText)
                         }
                         
-                        NavigationLink(destination: SettingView()) {
-                            Image(systemName: "gear")
-                                .foregroundColor(.chiikawaBlue)
-                        }
+                       
                     }
                 }
             }
@@ -149,20 +146,38 @@ struct LegacyContentView: View {
     }
     
     private func addAssistantMessage(_ content: String) {
+        // 尝试解析 JSON
+        var planModel: TravelPlanModel? = nil
+        var displayContent = content
+        
+        // 简单的 JSON 提取逻辑 (查找第一个 { 和最后一个 })
+        if let start = content.firstIndex(of: "{"),
+           let end = content.lastIndex(of: "}") {
+            let jsonString = String(content[start...end])
+            if let data = jsonString.data(using: .utf8),
+               let model = try? JSONDecoder().decode(TravelPlanModel.self, from: data) {
+                planModel = model
+                displayContent = "" // 如果成功解析为卡片，则不显示原始文本，或者只显示 summary
+            }
+        }
+        
         // 先清理 DSML 标记
-        var cleanedContent = content
+        var cleanedContent = displayContent
         
         // 移除所有 DSML 相关内容
+        // 注意：添加了对截断标签的处理（如 <｜DSML｜function_）
         let dsmlPatterns = [
-            "<\\s*\\|\\s*DSML[^>]*>",                    // < | DSML ... >
-            "</\\s*\\|\\s*DSML[^>]*>",                   // </ | DSML ... >
+            "<\\s*[\\|｜]\\s*DSML.*$",                    // < | DSML ... (匹配到结尾，处理截断)
+            "<\\s*[\\|｜]\\s*DSML[^>]*>",                 // < | DSML ... >
+            "</\\s*[\\|｜]\\s*DSML[^>]*>",                // </ | DSML ... >
             "function_calls?>",                           // function_calls>
             "invoke[^>]*>",                               // invoke...>
             "parameter[^>]*>",                            // parameter...>
+            "<\\s*[\\|｜]\\s*function_.*$"                // < | function_ ... (匹配到结尾，处理截断)
         ]
         
         for pattern in dsmlPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) {
                 let range = NSRange(cleanedContent.startIndex..., in: cleanedContent)
                 cleanedContent = regex.stringByReplacingMatches(
                     in: cleanedContent,
@@ -177,7 +192,7 @@ struct LegacyContentView: View {
         let trimmedContent = cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // 如果清理后内容为空,不显示
-        guard !trimmedContent.isEmpty else {
+        guard !trimmedContent.isEmpty || planModel != nil else {
             print("⚠️ 跳过空消息或纯 DSML 标记: \(content.prefix(50))...")
             return
         }
@@ -186,7 +201,8 @@ struct LegacyContentView: View {
             id: UUID().uuidString,
             role: .assistant,
             content: trimmedContent,  // 使用清理后的内容
-            timestamp: Date()
+            timestamp: Date(),
+            planModel: planModel // ✅ 传入解析后的模型
         )
         
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -535,6 +551,7 @@ struct DisplayMessage: Identifiable {
     let timestamp: Date
     var base64Image: String? = nil
     var quickAction: QuickAction? = nil
+    var planModel: TravelPlanModel? = nil // ✅ 新增：支持结构化计划数据
     
     enum MessageRole {
         case user
@@ -571,16 +588,17 @@ struct MessageView: View {
         
         // 策略1: 如果检测到 DSML 块的开始，直接截断后面的所有内容
         // DSML 标记通常出现在消息末尾作为工具调用参数，且在截图中显示为 < | DSML | 格式
-        // 我们匹配 < | DSML | 及其变体
-        if let range = content.range(of: "<\\s*\\|\\s*DSML\\s*\\|", options: .regularExpression) {
+        // 我们匹配 < | DSML | 及其变体（包括全角符号）
+        if let range = content.range(of: "<\\s*[\\|｜]\\s*DSML.*", options: [.regularExpression, .caseInsensitive]) {
             content = String(content[..<range.lowerBound])
         }
         
         // 策略2: 移除所有 DSML 相关标记（更全面的模式，处理残留或不同格式）
         let dsmlPatterns = [
-            "<\\s*\\|\\s*DSML\\s*\\|[^>]*>?",           // < | DSML | ... (可选 >)
-            "</\\s*\\|\\s*DSML\\s*\\|[^>]*>?",          // </ | DSML | ... (可选 >)
-            "DSML\\s*\\|",                             // 单独的 DSML |
+            "<\\s*[\\|｜]\\s*DSML.*$",                    // < | DSML ... (匹配到结尾)
+            "<\\s*[\\|｜]\\s*DSML[^>]*>",                 // < | DSML ... >
+            "</\\s*[\\|｜]\\s*DSML[^>]*>",                // </ | DSML ... >
+            "DSML\\s*[\\|｜]",                             // 单独的 DSML |
             "function_calls?",                           // function_call 关键字
             "invoke\\s+name=",                           // invoke name=
             "parameter\\s+name=",                        // parameter name=
@@ -588,7 +606,7 @@ struct MessageView: View {
         ]
         
         for pattern in dsmlPatterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) {
                 let range = NSRange(content.startIndex..., in: content)
                 content = regex.stringByReplacingMatches(
                     in: content,
@@ -608,11 +626,15 @@ struct MessageView: View {
     }
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // 如果是用户消息，添加 Spacer 将内容推到右侧
-            if message.role == .user {
-                Spacer()
-            }
+        // 如果清理后的内容为空，且没有图片，且没有计划卡片，则不显示此消息
+        if cleanedContent.isEmpty && message.base64Image == nil && message.planModel == nil {
+            EmptyView()
+        } else {
+            HStack(alignment: .top, spacing: 12) {
+                // 如果是用户消息，添加 Spacer 将内容推到右侧
+                if message.role == .user {
+                    Spacer()
+                }
             
             if message.role != .user {
                 // AI头像
@@ -642,23 +664,35 @@ struct MessageView: View {
                 }
                 
                 // 消息内容
-                Text(cleanedContent)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(backgroundColor)
-                    .foregroundColor(textColor)
-                    .cornerRadius(18)
-                    .contextMenu {
-                        Button(action: {
-                            UIPasteboard.general.string = cleanedContent
-                        }) {
-                            Label("复制", systemImage: "doc.on.doc")
+                if let plan = message.planModel {
+                    // ✅ 渲染结构化卡片
+                    PlanResultView(plan: plan)
+                        .frame(maxWidth: 300) // 限制宽度
+                        .contextMenu {
+                            Button(role: .destructive, action: onDelete) {
+                                Label("删除", systemImage: "trash")
+                            }
                         }
-                        
-                        Button(role: .destructive, action: onDelete) {
-                            Label("删除", systemImage: "trash")
+                } else {
+                    // 渲染普通文本
+                    Text(cleanedContent)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(backgroundColor)
+                        .foregroundColor(textColor)
+                        .cornerRadius(18)
+                        .contextMenu {
+                            Button(action: {
+                                UIPasteboard.general.string = cleanedContent
+                            }) {
+                                Label("复制", systemImage: "doc.on.doc")
+                            }
+                            
+                            Button(role: .destructive, action: onDelete) {
+                                Label("删除", systemImage: "trash")
+                            }
                         }
-                    }
+                }
                 
                 // 图片显示
                 if let base64Image = message.base64Image,
@@ -704,6 +738,7 @@ struct MessageView: View {
         // ✅ 修复 padding 语法
         .padding(.leading, message.role == .user ? 50 : 0)
         .padding(.trailing, message.role == .user ? 0 : 50)
+        }
     }
     
     private var backgroundColor: Color {

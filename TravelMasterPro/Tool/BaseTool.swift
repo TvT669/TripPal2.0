@@ -100,6 +100,10 @@ class BaseTool: Tool {
             if let doubleValue = arguments[key] as? Double {
                 return doubleValue
             }
+            // 尝试从字符串转换
+            if let stringValue = arguments[key] as? String, let doubleValue = Double(stringValue) {
+                return doubleValue
+            }
             return nil
         }
         

@@ -15,6 +15,7 @@ class PlanningFlow: Flow {
     // 智能体团队
     private let primaryAgent: Agent  // 主要规划师
     private let agents: [String: Agent]  // 专业智能体团队
+    private let synthesisAgent: SynthesisAgent // 综合智能体
     
     // 状态管理
     @Published private(set) var status: FlowStatus = .idle
@@ -24,26 +25,35 @@ class PlanningFlow: Flow {
     init(primaryAgent: Agent, agents: [String: Agent]) {
         self.primaryAgent = primaryAgent
         self.agents = agents
+        // 假设 primaryAgent 的 LLM 服务可以复用，或者创建一个新的
+        // 这里为了简单，我们假设可以从 primaryAgent 获取 LLMService，或者直接新建
+        // 由于 Agent 协议没有暴露 LLMService，我们这里临时创建一个新的 LLMService 实例
+        // 在实际项目中，应该通过依赖注入传递
+        self.synthesisAgent = SynthesisAgent(llm: LLMService())
     }
     
     // MARK: - Flow 协议实现
     
     func execute(request: String) async throws -> FlowResult {
+        return try await execute(request: request, history: [])
+    }
+    
+    func execute(request: String, history: [Message]) async throws -> FlowResult {
         let startTime = Date()
         status = .planning
         
         do {
-            // 1. 智能任务分解
-            let tasks = try await decomposeTasks(request)
+            // 1. 智能任务分解 (带历史上下文)
+            let tasks = try await decomposeTasks(request, history: history)
             currentTasks = tasks
             
             status = .executing
             
-            // 2. 执行任务
-            let results = try await executeTasks(tasks)
+            // 2. 执行任务 (带反馈循环)
+            let results = try await executeTasksWithFeedback(tasks, originalRequest: request)
             
-            // 3. 整合结果
-            let finalOutput = synthesizeResults(results)
+            // 3. 整合结果 (使用 SynthesisAgent)
+            let finalOutput = try await performSynthesis(request: request)
             
             status = .completed
             let executionTime = Date().timeIntervalSince(startTime)
@@ -82,11 +92,19 @@ class PlanningFlow: Flow {
     // MARK: - 私有实现方法
     
     /// 智能任务分解
-    private func decomposeTasks(_ request: String) async throws -> [SimpleTask] {
+    private func decomposeTasks(_ request: String, history: [Message] = []) async throws -> [SimpleTask] {
+        
+        var contextStr = ""
+        if !history.isEmpty {
+            // 提取最近的对话历史作为上下文
+            contextStr = "\n历史对话上下文：\n" + history.suffix(5).map { "\($0.role.rawValue): \($0.content)" }.joined(separator: "\n")
+        }
+        
         let decompositionPrompt = """
         作为旅行规划专家，请将以下用户请求分解为具体的执行任务：
         
         用户请求：\(request)
+        \(contextStr)
         
         可用的智能体类型：
         - flight: 航班搜索和预订
@@ -139,11 +157,21 @@ class PlanningFlow: Flow {
         }
     }
     
-    /// 执行任务列表
-    private func executeTasks(_ tasks: [SimpleTask]) async throws -> [String] {
+    /// 执行任务列表 (带反馈循环)
+    private func executeTasksWithFeedback(_ tasks: [SimpleTask], originalRequest: String) async throws -> [String] {
         var results: [String] = []
         
-        for var task in tasks {
+        // 预处理：确保 budget 任务在最后执行，以便利用其他任务的成本数据
+        let sortedTasks = tasks.sorted { t1, t2 in
+            if t1.type == .budget { return false } // budget 放后面
+            if t2.type == .budget { return true }
+            return false
+        }
+        
+        // 更新当前任务列表顺序
+        currentTasks = sortedTasks
+        
+        for var task in sortedTasks {
             // 获取负责的智能体
             guard let agent = agents[task.assignedAgent] else {
                 throw FlowError.agentNotFound(task.assignedAgent)
@@ -163,7 +191,13 @@ class PlanningFlow: Flow {
             updateTaskInList(&task)
             
             do {
-                let result = try await agent.run(request: task.description)
+                // 动态构建请求：如果是预算任务，注入已知的成本信息
+                var taskRequest = task.description
+                if task.type == .budget {
+                    taskRequest = enrichBudgetRequest(taskRequest, context: sharedContext)
+                }
+                
+                let result = try await agent.run(request: taskRequest)
                 
                 task.status = .completed
                 task.result = result
@@ -173,7 +207,9 @@ class PlanningFlow: Flow {
                 
                 // 更新共享上下文
                 mergeContext(from: agent.getSharedContext())
-                sharedContext["task_\(task.id)_result"] = result
+                
+                // 关键步骤：提取结构化数据并更新上下文
+                updateContextWithTaskResult(taskType: task.type, result: result, taskId: task.id)
                 
             } catch {
                 task.status = .failed
@@ -185,7 +221,70 @@ class PlanningFlow: Flow {
         return results
     }
     
-    /// 整合结果
+    /// 丰富预算请求，注入已知成本
+    private func enrichBudgetRequest(_ originalRequest: String, context: [String: Any]) -> String {
+        var enrichment = "\n\n【已知成本信息】\n"
+        var hasCostInfo = false
+        
+        if let flightCost = context["extracted_flight_cost"] as? Double {
+            enrichment += "- 航班预估费用：¥\(flightCost)\n"
+            hasCostInfo = true
+        }
+        
+        if let hotelCost = context["extracted_hotel_cost"] as? Double {
+            enrichment += "- 酒店预估费用：¥\(hotelCost)\n"
+            hasCostInfo = true
+        }
+        
+        if hasCostInfo {
+            return originalRequest + enrichment + "\n请基于以上实际搜索到的费用，重新评估总预算的可行性。"
+        }
+        
+        return originalRequest
+    }
+    
+    /// 从任务结果中提取数据并更新上下文
+    private func updateContextWithTaskResult(taskType: TaskType, result: String, taskId: String) {
+        // 保存原始结果
+        sharedContext["task_\(taskType.rawValue)_result"] = result
+        sharedContext["task_\(taskId)_result"] = result
+        
+        // 尝试提取价格信息 (简单的正则提取，实际可优化为更复杂的解析)
+        if taskType == .flight || taskType == .hotel {
+            if let price = extractPrice(from: result) {
+                sharedContext["extracted_\(taskType.rawValue)_cost"] = price
+                print("💰 从 \(taskType.rawValue) 任务中提取到价格: ¥\(price)")
+            }
+        }
+    }
+    
+    /// 简单的价格提取逻辑
+    private func extractPrice(from text: String) -> Double? {
+        // 匹配 "¥1234" 或 "1234元" 或 "价格：1234"
+        let patterns = [
+            "¥\\s*(\\d+(?:\\.\\d{1,2})?)",
+            "(\\d+(?:\\.\\d{1,2})?)\\s*元",
+            "价格[：:]\\s*(\\d+(?:\\.\\d{1,2})?)"
+        ]
+        
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+               let range = Range(match.range(at: 1), in: text),
+               let price = Double(text[range]) {
+                return price
+            }
+        }
+        return nil
+    }
+    
+    /// 使用 SynthesisAgent 进行结果整合
+    private func performSynthesis(request: String) async throws -> String {
+        synthesisAgent.setSharedContext(sharedContext)
+        return try await synthesisAgent.run(request: request)
+    }
+    
+    /// 整合结果 (旧方法，保留兼容性但不再主要使用)
     private func synthesizeResults(_ results: [String]) -> String {
         if results.isEmpty {
             return "没有完成任何任务"

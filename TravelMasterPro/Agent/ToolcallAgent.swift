@@ -119,11 +119,22 @@ class ToolCallAgent: Agent {
             )
             
             // 记录思考结果
-            if let content = result.content, !content.isEmpty {
-                memory.addMessage(Message.assistantMessage(content))
+            // ✅ 修复：即使 content 为空，如果有 toolCalls，也必须记录 assistant 消息
+            // 否则会导致 "Messages with role 'tool' must be a response to a preceding message with 'tool_calls'" 错误
+            let content = result.content ?? ""
+            let toolCalls = result.toolCalls ?? []
+            
+            if !content.isEmpty || !toolCalls.isEmpty {
+                var message = Message.assistantMessage(content)
+                if !toolCalls.isEmpty {
+                    var metadata = MessageMetadata()
+                    metadata.toolCalls = toolCalls
+                    message.metadata = metadata
+                }
+                memory.addMessage(message)
             }
             
-            return result.toolCalls ?? []
+            return toolCalls
             
         } catch {
             throw AgentError.executionFailed("思考阶段失败: \(error.localizedDescription)")

@@ -11,11 +11,13 @@ import SwiftData
 @main
 struct TravelMasterProApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var tripStore = TripStore()
        
     var body: some Scene {
         WindowGroup {
             MainTabView()
                 .environmentObject(appState)
+                .environmentObject(tripStore)
         }
     }
 }
@@ -96,24 +98,42 @@ class AppState: ObservableObject {
             memoryService.addMessage(userMessage)
             
             // 2. 获取历史消息上下文 (从 MemoryService 获取所有历史记录)
-            let contextMessages = memoryService.messages
+            var contextMessages = memoryService.messages
+            
+            // ✅ 注入系统提示词（包含当前日期）
+            // 确保每次请求都包含最新的系统提示词（特别是日期）
+            if !contextMessages.contains(where: { $0.role == .system }) {
+                let systemMessage = Message.systemMessage(Prompts.generalAgentSystem)
+                contextMessages.insert(systemMessage, at: 0)
+            }
             
             // 获取可用工具
             let availableTools = toolCollection.getAllTools()
             
-            // 3. 使用完整上下文调用 LLM
-            let result = try await llmService.thinkAndAct(
-                messages: contextMessages,
-                availableTools: availableTools
-            )
-            
-            // 4. 保存 AI 回复到记忆中
-            if let content = result.content {
-                let assistantMessage = Message(role: .assistant, content: content)
+            // 3. 使用 PlanningFlow 执行请求 (支持多智能体协作)
+            if let flow = planningFlow {
+                print("🚀 启动 PlanningFlow 处理请求: \(request)")
+                let result = try await flow.execute(request: request, history: contextMessages)
+                
+                // 4. 保存 AI 回复到记忆中
+                let assistantMessage = Message(role: .assistant, content: result.output)
                 memoryService.addMessage(assistantMessage)
-                response = content
+                response = result.output
             } else {
-                response = "处理完成"
+                // 降级处理：如果没有初始化 Flow，直接使用 LLM
+                print("⚠️ PlanningFlow 未初始化，降级使用 LLMService")
+                let result = try await llmService.thinkAndAct(
+                    messages: contextMessages,
+                    availableTools: availableTools
+                )
+                
+                if let content = result.content {
+                    let assistantMessage = Message(role: .assistant, content: content)
+                    memoryService.addMessage(assistantMessage)
+                    response = content
+                } else {
+                    response = "处理完成"
+                }
             }
             
             isLoading = false
