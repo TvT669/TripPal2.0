@@ -28,6 +28,7 @@ struct LegacyContentView: View {
                     if !chatMessages.isEmpty || appState.isLoading {
                         StatusBarView(
                             isLoading: appState.isLoading,
+                            statusMessage: appState.statusMessage, // ✅ 传入状态
                             messageCount: chatMessages.count,
                             onClear: clearChat
                         )
@@ -37,6 +38,7 @@ struct LegacyContentView: View {
                     ChatAreaView(
                         messages: $chatMessages,
                         isLoading: appState.isLoading,
+                        statusMessage: appState.statusMessage, // ✅ 传入状态
                         isEmpty: chatMessages.isEmpty,
                         onQuickAction: { action in
                             selectedQuickAction = action
@@ -146,34 +148,50 @@ struct LegacyContentView: View {
     }
     
     private func addAssistantMessage(_ content: String) {
-        // 尝试解析 JSON
+        // ✅ 优先尝试解析 HybridResponse（混合响应）
+        var conversationalText = ""
         var planModel: TravelPlanModel? = nil
-        var displayContent = content
         
-        // 简单的 JSON 提取逻辑 (查找第一个 { 和最后一个 })
-        if let start = content.firstIndex(of: "{"),
-           let end = content.lastIndex(of: "}") {
-            let jsonString = String(content[start...end])
-            if let data = jsonString.data(using: .utf8),
-               let model = try? JSONDecoder().decode(TravelPlanModel.self, from: data) {
-                planModel = model
-                displayContent = "" // 如果成功解析为卡片，则不显示原始文本，或者只显示 summary
+        // 尝试解析混合响应格式
+        if let data = content.data(using: .utf8),
+           let hybridResponse = try? JSONDecoder().decode(HybridResponse.self, from: data) {
+            // 成功解析混合响应
+            conversationalText = hybridResponse.conversationalText
+            planModel = hybridResponse.structuredPlan
+            
+            // 调试：打印内部思考链
+            if let thoughts = hybridResponse.internalThoughts {
+                print("🧠 SynthesisAgent 内部思考：\n\(thoughts)")
+            }
+        } else {
+            // 降级处理：尝试直接解析旧版 TravelPlanModel（兼容性）
+            if let start = content.firstIndex(of: "{"),
+               let end = content.lastIndex(of: "}") {
+                let jsonString = String(content[start...end])
+                if let jsonData = jsonString.data(using: .utf8),
+                   let model = try? JSONDecoder().decode(TravelPlanModel.self, from: jsonData) {
+                    planModel = model
+                    conversationalText = "" // 旧格式没有对话文本
+                }
+            }
+            
+            // 如果既不是混合响应也不是结构化数据，当作纯文本处理
+            if planModel == nil {
+                conversationalText = content
             }
         }
         
-        // 先清理 DSML 标记
-        var cleanedContent = displayContent
+        // 清理 DSML 标记（从对话文本中移除）
+        var cleanedContent = conversationalText
         
-        // 移除所有 DSML 相关内容
-        // 注意：添加了对截断标签的处理（如 <｜DSML｜function_）
         let dsmlPatterns = [
-            "<\\s*[\\|｜]\\s*DSML.*$",                    // < | DSML ... (匹配到结尾，处理截断)
-            "<\\s*[\\|｜]\\s*DSML[^>]*>",                 // < | DSML ... >
-            "</\\s*[\\|｜]\\s*DSML[^>]*>",                // </ | DSML ... >
-            "function_calls?>",                           // function_calls>
-            "invoke[^>]*>",                               // invoke...>
-            "parameter[^>]*>",                            // parameter...>
-            "<\\s*[\\|｜]\\s*function_.*$"                // < | function_ ... (匹配到结尾，处理截断)
+            "<\\s*[\\|｜]\\s*DSML.*$",
+            "<\\s*[\\|｜]\\s*DSML[^>]*>",
+            "</\\s*[\\|｜]\\s*DSML[^>]*>",
+            "function_calls?>",
+            "invoke[^>]*>",
+            "parameter[^>]*>",
+            "<\\s*[\\|｜]\\s*function_.*$"
         ]
         
         for pattern in dsmlPatterns {
@@ -188,21 +206,21 @@ struct LegacyContentView: View {
             }
         }
         
-        // 清理后再判断是否为空
         let trimmedContent = cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 如果清理后内容为空,不显示
+        // 如果既没有文本也没有结构化数据，跳过
         guard !trimmedContent.isEmpty || planModel != nil else {
-            print("⚠️ 跳过空消息或纯 DSML 标记: \(content.prefix(50))...")
+            print("⚠️ 跳过空消息: \(content.prefix(50))...")
             return
         }
         
+        // ✅ 添加消息（支持混合模式）
         let assistantMessage = DisplayMessage(
             id: UUID().uuidString,
             role: .assistant,
-            content: trimmedContent,  // 使用清理后的内容
+            content: trimmedContent,
             timestamp: Date(),
-            planModel: planModel // ✅ 传入解析后的模型
+            planModel: planModel
         )
         
         withAnimation(.easeInOut(duration: 0.3)) {
@@ -223,6 +241,7 @@ struct LegacyContentView: View {
 /// 状态栏视图
 struct StatusBarView: View {
     let isLoading: Bool
+    let statusMessage: String // ✅ 接收状态
     let messageCount: Int
     let onClear: () -> Void
     
@@ -242,9 +261,11 @@ struct StatusBarView: View {
                 HStack(spacing: 6) {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("AI思考中...")
+                    Text(statusMessage) // ✅ 显示动态状态
                         .font(.caption)
                         .foregroundColor(.chiikawaBlue)
+                        .lineLimit(1)
+                        .transition(.opacity)
                 }
             }
         }
@@ -259,6 +280,7 @@ struct StatusBarView: View {
 struct ChatAreaView: View {
     @Binding var messages: [DisplayMessage]
     let isLoading: Bool
+    let statusMessage: String // ✅ 接收状态
     let isEmpty: Bool
     let onQuickAction: (QuickAction) -> Void
     
@@ -285,7 +307,7 @@ struct ChatAreaView: View {
                         }
                         
                         if isLoading {
-                            TypingIndicatorView()
+                            TypingIndicatorView(statusText: statusMessage) // ✅ 传递状态
                                 .id("typing")
                         }
                     }
@@ -506,6 +528,7 @@ struct SuggestionBarView: View {
 
 /// 打字指示器
 struct TypingIndicatorView: View {
+    var statusText: String = "AI正在思考" // ✅ 支持自定义文本
     @State private var animationOffset: CGFloat = -50
     
     var body: some View {
@@ -513,9 +536,10 @@ struct TypingIndicatorView: View {
             Image(systemName: "brain.head.profile")
                 .foregroundColor(.chiikawaPink)
             
-            Text("AI正在思考")
+            Text(statusText) // ✅ 显示当前状态
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .animation(.easeInOut, value: statusText) // 平滑过渡文字变化
             
             HStack(spacing: 3) {
                 ForEach(0..<3, id: \.self) { index in

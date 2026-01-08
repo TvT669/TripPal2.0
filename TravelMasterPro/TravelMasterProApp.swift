@@ -32,6 +32,7 @@ class AppState: ObservableObject {
     @Published var isLoading = false
     @Published var response = "" // ✅ ContentView 需要的响应属性
     @Published var errorMessage: String? = nil
+    @Published var statusMessage: String = "AI思考中..." // ✅ 实时状态消息
     
     // MARK: - 服务层
     private let llmService: LLMService
@@ -46,6 +47,7 @@ class AppState: ObservableObject {
     
     // MARK: - 工作流
     private var planningFlow: PlanningFlow?
+    private var intentRouter: IntentRouter? // ✅ 新增意图路由器
     
     // MARK: - 初始化
     
@@ -77,6 +79,9 @@ class AppState: ObservableObject {
             ]
         )
         
+        // ✅ 初始化意图路由器
+        self.intentRouter = IntentRouter(llm: llmService)
+        
         // ✅ 直接在这里配置记忆服务，而不是调用方法
         // 配置记忆服务参数
         // memoryService.configure(maxMessages: 100)
@@ -85,7 +90,7 @@ class AppState: ObservableObject {
     
     // MARK: - 公共方法
     
-    /// 执行用户请求
+    /// 执行用户请求（智能路由版）
     /// - Parameter request: 用户输入的请求文本
     @MainActor
     func executeRequest(_ request: String) async {
@@ -97,43 +102,39 @@ class AppState: ObservableObject {
             let userMessage = Message.userMessage(request)
             memoryService.addMessage(userMessage)
             
-            // 2. 获取历史消息上下文 (从 MemoryService 获取所有历史记录)
+            // 2. 获取历史消息上下文
             var contextMessages = memoryService.messages
             
-            // ✅ 注入系统提示词（包含当前日期）
-            // 确保每次请求都包含最新的系统提示词（特别是日期）
+            // 注入系统提示词
             if !contextMessages.contains(where: { $0.role == .system }) {
                 let systemMessage = Message.systemMessage(Prompts.generalAgentSystem)
                 contextMessages.insert(systemMessage, at: 0)
             }
             
-            // 获取可用工具
-            let availableTools = toolCollection.getAllTools()
+            // ✅ 3. 意图识别（核心改进）
+            guard let router = intentRouter else {
+                // 降级：如果路由器未初始化，默认走多智能体流程
+                try await executeComplexPlanning(request: request, history: contextMessages)
+                return
+            }
             
-            // 3. 使用 PlanningFlow 执行请求 (支持多智能体协作)
-            if let flow = planningFlow {
-                print("🚀 启动 PlanningFlow 处理请求: \(request)")
-                let result = try await flow.execute(request: request, history: contextMessages)
+            statusMessage = "正在理解您的需求..."
+            let intent = await router.classifyIntent(request)
+            print("🎯 意图识别结果: \(intent.description)")
+            
+            // ✅ 4. 根据意图路由到不同的执行路径
+            switch intent {
+            case .complexPlanning:
+                // 路径A: 复杂规划 -> 多智能体协作 -> HybridResponse
+                try await executeComplexPlanning(request: request, history: contextMessages)
                 
-                // 4. 保存 AI 回复到记忆中
-                let assistantMessage = Message(role: .assistant, content: result.output)
-                memoryService.addMessage(assistantMessage)
-                response = result.output
-            } else {
-                // 降级处理：如果没有初始化 Flow，直接使用 LLM
-                print("⚠️ PlanningFlow 未初始化，降级使用 LLMService")
-                let result = try await llmService.thinkAndAct(
-                    messages: contextMessages,
-                    availableTools: availableTools
-                )
+            case .singleQuery:
+                // 路径B: 单一查询 -> 单智能体工具调用 -> 纯文本
+                try await executeSingleQuery(request: request, history: contextMessages)
                 
-                if let content = result.content {
-                    let assistantMessage = Message(role: .assistant, content: content)
-                    memoryService.addMessage(assistantMessage)
-                    response = content
-                } else {
-                    response = "处理完成"
-                }
+            case .casualChat:
+                // 路径C: 闲聊 -> 直接 LLM 回复 -> 纯文本
+                try await executeCasualChat(request: request, history: contextMessages)
             }
             
             isLoading = false
@@ -146,6 +147,82 @@ class AppState: ObservableObject {
             errorMessage = "执行请求失败: \(error.localizedDescription)"
             print("🔍 详细错误: \(error)")
         }
+    }
+    
+    // MARK: - 执行路径实现
+    
+    /// 路径A: 复杂旅行规划（多智能体协作）
+    private func executeComplexPlanning(request: String, history: [Message]) async throws {
+        guard let flow = planningFlow else {
+            throw NSError(domain: "AppState", code: -1, userInfo: [NSLocalizedDescriptionKey: "PlanningFlow 未初始化"])
+        }
+        
+        print("🚀 路径A: 启动多智能体规划流程")
+        statusMessage = "正在召集智能体团队..."
+        
+        let result = try await flow.execute(request: request, history: history) { progressMsg in
+            Task { @MainActor in
+                self.statusMessage = progressMsg
+            }
+        }
+        
+        let assistantMessage = Message(role: .assistant, content: result.output)
+        memoryService.addMessage(assistantMessage)
+        response = result.output
+    }
+    
+    /// 路径B: 单一查询（单智能体 + 工具）
+    private func executeSingleQuery(request: String, history: [Message]) async throws {
+        print("🔍 路径B: 单一查询模式")
+        statusMessage = "正在查询..."
+        
+        // 根据关键词选择合适的智能体
+        let selectedAgent: Agent
+        
+        if request.lowercased().contains("机票") || request.lowercased().contains("航班") {
+            selectedAgent = flightAgent
+        } else if request.lowercased().contains("酒店") || request.lowercased().contains("住宿") {
+            selectedAgent = hotelAgent
+        } else if request.lowercased().contains("路线") || request.lowercased().contains("怎么走") {
+            selectedAgent = routeAgent
+        } else if request.lowercased().contains("预算") || request.lowercased().contains("多少钱") {
+            selectedAgent = budgetAgent
+        } else {
+            selectedAgent = generalAgent
+        }
+        
+        // ✅ 修复：为 Agent 提供历史上下文
+        // 注意：当前 Agent.run() 接口只接受 String，需要扩展或通过 SharedContext 传递
+        // 临时方案：将最近的对话历史摘要附加到请求中
+        var enrichedRequest = request
+        if history.count > 2 {
+            let recentHistory = history.suffix(4).map { "\($0.role.rawValue): \($0.content)" }.joined(separator: "\n")
+            enrichedRequest = """
+            [历史上下文]
+            \(recentHistory)
+            
+            [当前请求]
+            \(request)
+            """
+        }
+        
+        let result = try await selectedAgent.run(request: enrichedRequest)
+        
+        let assistantMessage = Message(role: .assistant, content: result)
+        memoryService.addMessage(assistantMessage)
+        response = result
+    }
+    
+    /// 路径C: 闲聊（直接 LLM）
+    private func executeCasualChat(request: String, history: [Message]) async throws {
+        print("💬 路径C: 闲聊模式")
+        statusMessage = "AI思考中..."
+        
+        let result = try await llmService.chat(messages: history + [Message.userMessage(request)])
+        
+        let assistantMessage = Message(role: .assistant, content: result)
+        memoryService.addMessage(assistantMessage)
+        response = result
     }
     
     /// 取消当前请求

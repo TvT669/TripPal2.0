@@ -17,14 +17,13 @@ struct PlanResultView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // 1. 摘要文本
-            Text(plan.summaryText)
-                .font(.body)
-                .foregroundColor(.primary)
-                .padding(.bottom, 4)
-            
-            // 2. 预算仪表盘
+            // 1. 预算仪表盘
             BudgetDashboardCell(status: plan.budgetStatus)
+            
+            // 2. 精选推荐（如果有）
+            if let highlights = plan.highlights, !highlights.isEmpty {
+                HighlightsSection(highlights: highlights)
+            }
             
             // 3. 风险提示条 (如果有)
             if !plan.riskWarnings.isEmpty {
@@ -38,7 +37,12 @@ struct PlanResultView: View {
             
             ItineraryTimelineView(days: plan.itinerary)
             
-            // 5. 一键保存按钮
+            // 5. 备选方案（如果有）
+            if let alternatives = plan.alternatives, !alternatives.isEmpty {
+                AlternativesSection(alternatives: alternatives)
+            }
+            
+            // 6. 一键保存按钮
             if isSaved {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
@@ -130,8 +134,8 @@ struct PlanResultView: View {
         for day in model.itinerary {
             for activity in day.activities {
                 let place = ParsedPlace(
-                    name: activity,
-                    originalText: "Day \(day.day): \(day.title) - \(activity)",
+                    name: activity.description,
+                    originalText: "Day \(day.day): \(day.title) - \(activity.description)",
                     isSelected: true,
                     day: day.day
                 )
@@ -264,13 +268,20 @@ struct ItineraryTimelineView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         // 头部
                         HStack {
-                            Text("Day \(day.day)")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(Color.blue)
-                                .cornerRadius(8)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Day \(day.day)")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                if let date = day.date {
+                                    Text(date)
+                                        .font(.caption2)
+                                        .foregroundColor(.white.opacity(0.8))
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.blue)
+                            .cornerRadius(8)
                             
                             Spacer()
                             
@@ -288,18 +299,33 @@ struct ItineraryTimelineView: View {
                         
                         // 活动列表
                         VStack(alignment: .leading, spacing: 6) {
-                            ForEach(day.activities.prefix(3), id: \.self) { activity in
+                            ForEach(day.activities.prefix(3)) { activity in
                                 HStack(alignment: .top, spacing: 6) {
-                                    Image(systemName: "circle.fill")
-                                        .font(.system(size: 4))
-                                        .padding(.top, 6)
-                                        .foregroundColor(.blue)
+                                    if let time = activity.time {
+                                        Text(time)
+                                            .font(.caption2)
+                                            .foregroundColor(.blue)
+                                            .frame(width: 35, alignment: .leading)
+                                    } else {
+                                        Image(systemName: "circle.fill")
+                                            .font(.system(size: 4))
+                                            .padding(.top, 6)
+                                            .foregroundColor(.blue)
+                                    }
                                     
-                                    Text(activity)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                        .fixedSize(horizontal: false, vertical: true)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(activity.description)
+                                            .font(.caption)
+                                            .foregroundColor(.primary)
+                                            .lineLimit(2)
+                                        
+                                        if let location = activity.location {
+                                            Text(location)
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
                                 }
                             }
                             
@@ -314,7 +340,7 @@ struct ItineraryTimelineView: View {
                         Spacer()
                     }
                     .padding()
-                    .frame(width: 160, height: 200)
+                    .frame(width: 180, height: 220)
                     .background(Color.white)
                     .cornerRadius(12)
                     .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 1)
@@ -328,3 +354,113 @@ struct ItineraryTimelineView: View {
         }
     }
 }
+
+/// 精选推荐
+struct HighlightsSection: View {
+    let highlights: [String]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "star.fill")
+                    .foregroundColor(.yellow)
+                Text("精选推荐")
+                    .font(.headline)
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(highlights, id: \.self) { highlight in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.caption)
+                            .foregroundColor(.chiikawaPink)
+                            .padding(.top, 2)
+                        
+                        Text(highlight)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.yellow.opacity(0.05))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.yellow.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+/// 备选方案
+struct AlternativesSection: View {
+    let alternatives: [Alternative]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "arrow.triangle.swap")
+                    .foregroundColor(.blue)
+                Text("备选方案")
+                    .font(.headline)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(alternatives) { alternative in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: alternativeIcon(for: alternative.type))
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .frame(width: 20)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(alternative.description)
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                            
+                            Text(costDifferenceText(alternative.costDifference))
+                                .font(.caption2)
+                                .foregroundColor(alternative.costDifference > 0 ? .orange : .green)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    
+                    if alternative.id != alternatives.last?.id {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.blue.opacity(0.05))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+        )
+    }
+    
+    private func alternativeIcon(for type: String) -> String {
+        switch type.lowercased() {
+        case "flight": return "airplane"
+        case "hotel": return "bed.double"
+        case "route": return "map"
+        default: return "arrow.triangle.swap"
+        }
+    }
+    
+    private func costDifferenceText(_ difference: Double) -> String {
+        if difference > 0 {
+            return "额外 +¥\(Int(difference))"
+        } else if difference < 0 {
+            return "节省 -¥\(Int(abs(difference)))"
+        } else {
+            return "费用相同"
+        }
+    }
+}
+
+
+
+

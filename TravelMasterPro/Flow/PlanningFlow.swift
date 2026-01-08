@@ -35,24 +35,26 @@ class PlanningFlow: Flow {
     // MARK: - Flow 协议实现
     
     func execute(request: String) async throws -> FlowResult {
-        return try await execute(request: request, history: [])
+        return try await execute(request: request, history: [], onProgress: nil)
     }
     
-    func execute(request: String, history: [Message]) async throws -> FlowResult {
+    func execute(request: String, history: [Message], onProgress: ((String) -> Void)? = nil) async throws -> FlowResult {
         let startTime = Date()
         status = .planning
         
         do {
             // 1. 智能任务分解 (带历史上下文)
+            onProgress?("正在拆解任务...")
             let tasks = try await decomposeTasks(request, history: history)
             currentTasks = tasks
             
             status = .executing
             
             // 2. 执行任务 (带反馈循环)
-            let results = try await executeTasksWithFeedback(tasks, originalRequest: request)
+            let results = try await executeTasksWithFeedback(tasks, originalRequest: request, onProgress: onProgress)
             
             // 3. 整合结果 (使用 SynthesisAgent)
+            onProgress?("正在整合规划结果...")
             let finalOutput = try await performSynthesis(request: request)
             
             status = .completed
@@ -157,22 +159,91 @@ class PlanningFlow: Flow {
         }
     }
     
-    /// 执行任务列表 (带反馈循环)
-    private func executeTasksWithFeedback(_ tasks: [SimpleTask], originalRequest: String) async throws -> [String] {
+    /// 执行任务列表 (带反馈循环) - 并行优化版
+    private func executeTasksWithFeedback(_ tasks: [SimpleTask], originalRequest: String, onProgress: ((String) -> Void)? = nil) async throws -> [String] {
         var results: [String] = []
         
-        // 预处理：确保 budget 任务在最后执行，以便利用其他任务的成本数据
-        let sortedTasks = tasks.sorted { t1, t2 in
-            if t1.type == .budget { return false } // budget 放后面
-            if t2.type == .budget { return true }
-            return false
-        }
+        // 分离依赖任务 (budget) 和独立任务 (flight, hotel, route, general)
+        // 预算任务通常依赖其他任务的成本结果，所以放在最后执行
+        let dependentTypes: [TaskType] = [.budget]
+        
+        let parallelPhaseTasks = tasks.filter { !dependentTypes.contains($0.type) }
+        let sequentialPhaseTasks = tasks.filter { dependentTypes.contains($0.type) }
         
         // 更新当前任务列表顺序
-        currentTasks = sortedTasks
+        await MainActor.run {
+            currentTasks = parallelPhaseTasks + sequentialPhaseTasks
+        }
         
-        for var task in sortedTasks {
-            // 获取负责的智能体
+        // 1. 第一阶段：并行执行独立任务
+        if !parallelPhaseTasks.isEmpty {
+            onProgress?("多智能体团队并行工作中...")
+            
+            // 按 Agent 分组任务，确保同一 Agent 的任务串行执行 (避免非线程安全的 Agent 状态冲突)
+            let tasksByAgent = Dictionary(grouping: parallelPhaseTasks, by: { $0.assignedAgent })
+            
+            let parallelResults = try await withThrowingTaskGroup(of: [(String, String, [String: Any])].self) { group in
+                
+                for (agentId, agentTasks) in tasksByAgent {
+                    group.addTask {
+                        // 获取负责的智能体
+                        guard let agent = self.agents[agentId] else {
+                            throw FlowError.agentNotFound(agentId)
+                        }
+                        
+                        // 设置共享上下文 (使用当前快照)
+                        agent.setSharedContext(self.sharedContext)
+                        
+                        var agentResults: [(String, String, [String: Any])] = []
+                        
+                        // 串行执行该 Agent 的所有任务
+                        for var task in agentTasks {
+                            // 更新状态: Running
+                            await MainActor.run {
+                                task.status = .running
+                                self.updateTaskInList(task)
+                                // 通知进度，例如 "正在搜索北京到上海的航班..."
+                                onProgress?("[\(agent.name)] 正在\(self.simplifyTaskDesc(task.description))...")
+                            }
+                            
+                            // 执行任务
+                            let result = try await agent.run(request: task.description)
+                            
+                            // 更新状态: Completed
+                            await MainActor.run {
+                                var completedTask = task
+                                completedTask.status = .completed
+                                completedTask.result = result
+                                self.updateTaskInList(completedTask)
+                            }
+                            
+                            agentResults.append((task.id, result, agent.getSharedContext()))
+                        }
+                        
+                        return agentResults
+                    }
+                }
+                
+                var collectedResults: [String] = []
+                for try await agentTaskResults in group {
+                    for (taskId, result, agentContext) in agentTaskResults {
+                        collectedResults.append(result)
+                        
+                        // 合并上下文 (Consumer 线程串行执行，安全)
+                        self.mergeContext(from: agentContext)
+                        
+                        if let task = parallelPhaseTasks.first(where: { $0.id == taskId }) {
+                            self.updateContextWithTaskResult(taskType: task.type, result: result, taskId: taskId)
+                        }
+                    }
+                }
+                return collectedResults
+            }
+            results.append(contentsOf: parallelResults)
+        }
+        
+        // 2. 第二阶段：串行执行依赖任务
+        for var task in sequentialPhaseTasks {
             guard let agent = agents[task.assignedAgent] else {
                 throw FlowError.agentNotFound(task.assignedAgent)
             }
@@ -187,8 +258,11 @@ class PlanningFlow: Flow {
             agent.setSharedContext(sharedContext)
             
             // 执行任务
-            task.status = .running
-            updateTaskInList(&task)
+            await MainActor.run {
+                task.status = .running
+                self.updateTaskInList(task)
+                onProgress?("[\(agent.name)] 正在\(self.simplifyTaskDesc(task.description))...")
+            }
             
             do {
                 // 动态构建请求：如果是预算任务，注入已知的成本信息
@@ -199,9 +273,12 @@ class PlanningFlow: Flow {
                 
                 let result = try await agent.run(request: taskRequest)
                 
-                task.status = .completed
-                task.result = result
-                updateTaskInList(&task)
+                await MainActor.run {
+                    var completedTask = task
+                    completedTask.status = .completed
+                    completedTask.result = result
+                    self.updateTaskInList(completedTask)
+                }
                 
                 results.append(result)
                 
@@ -212,13 +289,22 @@ class PlanningFlow: Flow {
                 updateContextWithTaskResult(taskType: task.type, result: result, taskId: task.id)
                 
             } catch {
-                task.status = .failed
-                updateTaskInList(&task)
+                await MainActor.run {
+                    var failedTask = task
+                    failedTask.status = .failed
+                    self.updateTaskInList(failedTask)
+                }
                 throw FlowError.executionTimeout
             }
         }
         
         return results
+    }
+    
+    // 简化任务描述，避免过长
+    private func simplifyTaskDesc(_ desc: String) -> String {
+        let prefix = desc.replacingOccurrences(of: "\\[.*?\\]", with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        return prefix.count > 15 ? String(prefix.prefix(15)) + "..." : prefix
     }
     
     /// 丰富预算请求，注入已知成本
@@ -323,7 +409,7 @@ class PlanningFlow: Flow {
         }
     }
     
-    private func updateTaskInList(_ updatedTask: inout SimpleTask) {
+    private func updateTaskInList(_ updatedTask: SimpleTask) {
         if let index = currentTasks.firstIndex(where: { $0.id == updatedTask.id }) {
             currentTasks[index] = updatedTask
         }

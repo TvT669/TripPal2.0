@@ -215,7 +215,7 @@ struct Trip: Identifiable {
     let startDate: Date
     let endDate: Date
     let budget: Int
-    var activities: [Activity] = []
+    var activities: [TripActivity] = []
     
     var dateRange: String {
         let formatter = DateFormatter()
@@ -228,7 +228,7 @@ struct Trip: Identifiable {
     }
 }
 
-struct Activity: Identifiable {
+struct TripActivity: Identifiable {
     let id = UUID()
     let name: String
     let location: String
