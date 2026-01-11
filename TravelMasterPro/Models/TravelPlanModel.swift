@@ -58,8 +58,8 @@ struct TravelPlanModel: Codable, Equatable {
 /// 预算状态
 struct BudgetStatus: Codable, Equatable {
     let totalBudget: Double
-    let estimatedCost: Double
-    let isOverBudget: Bool
+    let estimatedCost: Double?      // 改为可选
+    let isOverBudget: Bool?         // 改为可选
     let verdict: String
     let breakdown: [CostItem]? // 花费细目
     
@@ -75,7 +75,7 @@ struct BudgetStatus: Codable, Equatable {
 /// 花费细目
 struct CostItem: Codable, Equatable {
     let category: String // "交通" | "住宿" | "餐饮" | "门票"
-    let amount: Double
+    let amount: Double?  // 改为可选
 }
 
 /// 每日行程
@@ -84,7 +84,7 @@ struct DailyItinerary: Codable, Equatable, Identifiable {
     let date: String? // "2025-01-15"
     let title: String
     let activities: [Activity]
-    let costEstimate: Double
+    let costEstimate: Double? // 改为可选
     
     // Identifiable 协议要求
     var id: Int { day }
@@ -138,7 +138,7 @@ struct Alternative: Codable, Equatable, Identifiable {
     let id: String
     let type: String // "flight" | "hotel" | "route"
     let description: String
-    let costDifference: Double // 与主方案的价格差
+    let costDifference: Double? // 改为可选
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -147,7 +147,7 @@ struct Alternative: Codable, Equatable, Identifiable {
         case costDifference = "cost_difference"
     }
     
-    init(id: String = UUID().uuidString, type: String, description: String, costDifference: Double) {
+    init(id: String = UUID().uuidString, type: String, description: String, costDifference: Double? = nil) {
         self.id = id
         self.type = type
         self.description = description

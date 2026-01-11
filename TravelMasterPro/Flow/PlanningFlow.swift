@@ -145,11 +145,15 @@ class PlanningFlow: Flow {
                 let agentType = String(line[agentRange])
                 let description = String(line[descriptionRange])
                 
+                // 确保使用有效的 Agent 类型（处理 LLM 可能的大小写不一致或幻觉）
+                // 如果解析失败，回退到 general
+                let safeType = TaskType(rawValue: agentType.lowercased()) ?? .general
+                
                 return SimpleTask(
                     id: "task_\(index + 1)",
-                    type: TaskType(rawValue: agentType) ?? .general,
+                    type: safeType,
                     description: description,
-                    assignedAgent: agentType,
+                    assignedAgent: safeType.rawValue, // ✅ 强制使用有效的 Key，防止 AgentNotFound 错误
                     status: .pending,
                     result: nil
                 )

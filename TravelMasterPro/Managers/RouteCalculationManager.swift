@@ -63,4 +63,67 @@ class RouteCalculationManager {
             return nil
         }
     }
+    
+    // MARK: - TSP Optimization
+    
+    /// TSP 优化：使用最近邻居法 (Nearest Neighbor) 对景点进行重新排序
+    /// - Parameters:
+    ///   - nodes: 待排序的景点列表
+    ///   - fixedStart: 是否固定第一个点作为起始点（默认为 true）
+    /// - Returns: 优化后的有序列表
+    func optimizeRoute(nodes: [TripNode], fixedStart: Bool = true) -> [TripNode] {
+        guard nodes.count > 2 else { return nodes }
+        
+        var unvisited = nodes
+        var optimized: [TripNode] = []
+        
+        // 1. 确定起始点
+        if fixedStart {
+            let start = unvisited.removeFirst()
+            optimized.append(start)
+        } else {
+            // 如果不固定起点，这里简单取第一个
+            let start = unvisited.removeFirst()
+            optimized.append(start)
+        }
+        
+        var current = optimized.last!
+        
+        // 2. 贪心查找最近邻居
+        while !unvisited.isEmpty {
+            if let (index, nearest) = findNearest(from: current, in: unvisited) {
+                optimized.append(nearest)
+                current = nearest
+                unvisited.remove(at: index)
+            } else {
+                break
+            }
+        }
+        
+        return optimized
+    }
+    
+    private func findNearest(from current: TripNode, in candidates: [TripNode]) -> (Int, TripNode)? {
+        guard !candidates.isEmpty else { return nil }
+        
+        let startLoc = CLLocation(latitude: current.coordinate.latitude, longitude: current.coordinate.longitude)
+        
+        var bestIndex = -1
+        var minDest: CLLocationDistance = .greatestFiniteMagnitude
+        
+        for (i, candidate) in candidates.enumerated() {
+            let endLoc = CLLocation(latitude: candidate.coordinate.latitude, longitude: candidate.coordinate.longitude)
+            let dist = startLoc.distance(from: endLoc)
+            
+            if dist < minDest {
+                minDest = dist
+                bestIndex = i
+            }
+        }
+        
+        if bestIndex >= 0 {
+            return (bestIndex, candidates[bestIndex])
+        }
+        return nil
+    }
 }

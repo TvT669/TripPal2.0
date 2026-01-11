@@ -486,7 +486,7 @@ struct SuggestionBarView: View {
         var suggestions: [String] = []
         
         if lowercased.contains("去") || lowercased.contains("旅游") {
-            suggestions.append("我想去长沙旅游，请帮我制定详细计划")
+            suggestions.append("我计划一个人1月15日从广州去北京玩 5天，预算只有 8000 元（含路费），但我想住市中心（天安门附近），还想去环球影城。")
         }
         if lowercased.contains("机票") || lowercased.contains("航班") {
             suggestions.append("帮我查找北京到上海的航班信息")
@@ -803,25 +803,25 @@ struct QuickAction: Identifiable {
         QuickAction(
             icon: "airplane.departure",
             title: "查找航班",
-            text: "帮我查找北京到上海明天的航班",
+            text: "帮我查找明天从北京去上海的早班机",
             category: .flight
         ),
         QuickAction(
             icon: "bed.double.fill",
             title: "预订酒店",
-            text: "推荐上海外滩附近性价比高的酒店",
+            text: "推荐上海外滩附近1000元左右的景观酒店",
             category: .hotel
         ),
         QuickAction(
             icon: "map.fill",
             title: "制定路线",
-            text: "帮我制定3天2夜的上海旅游路线",
+            text: "我计划下周五和朋友两个人去上海玩3天2夜，预算人均3000元，想住外滩附近的酒店，请帮我规划行程。",
             category: .route
         ),
         QuickAction(
             icon: "yensign.circle.fill",
             title: "预算分析",
-            text: "分析去长沙7天旅游需要多少预算",
+            text: "两个人去长沙玩5天，预算5000元够吗？请帮我分析一下花费详情",
             category: .budget
         )
     ]
@@ -834,7 +834,7 @@ struct QuickActionsSheet: View {
     
     private let allActions: [QuickAction] = [
         // 行程规划
-        QuickAction(icon: "calendar.badge.clock", title: "制定旅行计划", text: "我想去长沙旅游7天，帮我制定详细的行程计划", category: .planning),
+        QuickAction(icon: "calendar.badge.clock", title: "制定旅行计划", text: "我计划一个人1月15日从广州去北京玩 5天，预算只有 8000 元（含路费），但我想住市中心（天安门附近），还想去环球影城。", category: .planning),
         QuickAction(icon: "sun.max.fill", title: "周末游计划", text: "推荐北京周边适合周末游的地方", category: .planning),
         
         // 航班相关

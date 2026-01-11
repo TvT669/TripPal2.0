@@ -154,12 +154,12 @@ struct BudgetDashboardCell: View {
     let status: BudgetStatus
     
     var progress: Double {
-        guard status.totalBudget > 0 else { return 0 }
-        return min(status.estimatedCost / status.totalBudget, 1.5) // 允许超过100%显示
+        guard status.totalBudget > 0, let estimated = status.estimatedCost else { return 0 }
+        return min(estimated / status.totalBudget, 1.5) // 允许超过100%显示
     }
     
     var isOverBudget: Bool {
-        status.isOverBudget
+        status.isOverBudget ?? false
     }
     
     var body: some View {
@@ -208,14 +208,20 @@ struct BudgetDashboardCell: View {
                 
                 Spacer()
                 
-                Text("预估: ¥\(Int(status.estimatedCost))")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(isOverBudget ? .red : .primary)
+                if let estimated = status.estimatedCost {
+                    Text("预估: ¥\(Int(estimated))")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(isOverBudget ? .red : .primary)
+                } else {
+                    Text("预估: 待定")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
-            if isOverBudget {
-                Text("⚠️ 超出预算 ¥\(Int(status.estimatedCost - status.totalBudget))")
+            if isOverBudget, let estimated = status.estimatedCost {
+                Text("⚠️ 超出预算 ¥\(Int(estimated - status.totalBudget))")
                     .font(.caption)
                     .foregroundColor(.red)
             }
@@ -285,9 +291,11 @@ struct ItineraryTimelineView: View {
                             
                             Spacer()
                             
-                            Text("¥\(Int(day.costEstimate))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            if let cost = day.costEstimate {
+                                Text("¥\(Int(cost))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                         
                         Text(day.title)
@@ -421,7 +429,7 @@ struct AlternativesSection: View {
                             
                             Text(costDifferenceText(alternative.costDifference))
                                 .font(.caption2)
-                                .foregroundColor(alternative.costDifference > 0 ? .orange : .green)
+                                .foregroundColor((alternative.costDifference ?? 0) > 0 ? .orange : .green)
                         }
                     }
                     .padding(.vertical, 4)
@@ -450,7 +458,8 @@ struct AlternativesSection: View {
         }
     }
     
-    private func costDifferenceText(_ difference: Double) -> String {
+    private func costDifferenceText(_ difference: Double?) -> String {
+        guard let difference = difference else { return "价格未知" }
         if difference > 0 {
             return "额外 +¥\(Int(difference))"
         } else if difference < 0 {
