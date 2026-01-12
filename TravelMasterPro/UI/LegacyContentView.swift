@@ -25,10 +25,8 @@ struct LegacyContentView: View {
                 
                 VStack(spacing: 0) {
                     // 智能状态栏
-                    if !chatMessages.isEmpty || appState.isLoading {
+                    if !chatMessages.isEmpty {
                         StatusBarView(
-                            isLoading: appState.isLoading,
-                            statusMessage: appState.statusMessage, // ✅ 传入状态
                             messageCount: chatMessages.count,
                             onClear: clearChat
                         )
@@ -240,8 +238,6 @@ struct LegacyContentView: View {
 
 /// 状态栏视图
 struct StatusBarView: View {
-    let isLoading: Bool
-    let statusMessage: String // ✅ 接收状态
     let messageCount: Int
     let onClear: () -> Void
     
@@ -256,23 +252,10 @@ struct StatusBarView: View {
             }
             
             Spacer()
-            
-            if isLoading {
-                HStack(spacing: 6) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text(statusMessage) // ✅ 显示动态状态
-                        .font(.caption)
-                        .foregroundColor(.chiikawaBlue)
-                        .lineLimit(1)
-                        .transition(.opacity)
-                }
-            }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Color.chiikawaWhite)
-        .animation(.easeInOut, value: isLoading)
     }
 }
 

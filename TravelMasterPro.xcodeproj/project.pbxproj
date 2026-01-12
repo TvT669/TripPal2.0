@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		914D3C032F1401B200B7F0A3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 914D3C022F14019400B7F0A3 /* README.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
-		91C93B702E61F2A100F2CB59 /* TravelMasterPro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TravelMasterPro.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		914D3C022F14019400B7F0A3 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		918B44DE2F14C742001763A2 /* TravelMasterPro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TravelMasterPro.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -46,16 +51,9 @@
 			isa = PBXGroup;
 			children = (
 				91C93B722E61F2A100F2CB59 /* TravelMasterPro */,
-				91C93B712E61F2A100F2CB59 /* Products */,
+				914D3C022F14019400B7F0A3 /* README.md */,
+				918B44DE2F14C742001763A2 /* TravelMasterPro.app */,
 			);
-			sourceTree = "<group>";
-		};
-		91C93B712E61F2A100F2CB59 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				91C93B702E61F2A100F2CB59 /* TravelMasterPro.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -80,7 +78,7 @@
 			packageProductDependencies = (
 			);
 			productName = TravelMasterPro;
-			productReference = 91C93B702E61F2A100F2CB59 /* TravelMasterPro.app */;
+			productReference = 918B44DE2F14C742001763A2 /* TravelMasterPro.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -108,7 +106,7 @@
 			mainGroup = 91C93B672E61F2A100F2CB59;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 91C93B712E61F2A100F2CB59 /* Products */;
+			productRefGroup = 91C93B672E61F2A100F2CB59;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -122,6 +120,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				914D3C032F1401B200B7F0A3 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
