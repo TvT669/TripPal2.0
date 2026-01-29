@@ -15,35 +15,22 @@
 ## ✨ 核心特性 (Key Features)
 
 * **🧠 多智能体协同架构 (Multi-Agent Architecture)**
-  * 系统包含 5 个专业智能体：航班专家、酒店专家、路线规划师、预算分析师、总控协调员。
+  * 核心规划团队包含 5 个专业智能体：航班专家、酒店专家、路线规划师、预算分析师、总控协调员；并由综合智能体负责汇总输出。
   * 智能体之间**并行执行**，相比传统串行模式显著提升响应速度。
 * **🚦 意图识别与智能路由 (Intent Router)**
   * 自动分析用户意图：
     * **闲聊模式**：快速响应（如“你好”）。
     * **单一查询**：定向调用工具（如“查明天去北京的票”）。
     * **复杂规划**：启动多智能体工作流（如“帮我规划上海3天2夜游，下周六出发预算3000”）。
-* **📱 混合响应渲染 (Hybrid UI Rendering)**
-  * “自然语言 + 结构化卡片”的双模输出。
-  * 聊天气泡负责情感交流，动态卡片负责展示每日行程、预算仪表盘和风险提示。
+* **📱 结构化方案卡片渲染 (Structured Card Rendering)**
+  * AI 输出结构化 JSON，前端直接渲染为交互式卡片。
+  * 卡片包含每日行程时间轴、预算仪表盘与风险提示，避免长篇文字堆砌。
 * **🗺️ 智能路线优化**
-  * 内置 **TSP (旅行商问题)** 算法，基于地理位置对乱序景点进行智能排序，确保不走回头路。
+  * 内置基于 **TSP 的启发式近似（最近邻）** 的路线排序，基于地理位置对乱序景点进行智能排序，减少回头路。
 * **💰 深度预算控制**
   * 实时监控预算状态，提供精确到类别的花费拆解（交通/住宿/餐饮），并给出“预算充足”或“预算紧张”的评估。
 * **🎨 个性化主题**
   * 集成可爱的 UI 主题风格，提供流畅的交互动画与触觉反馈。
-
-### 🌗 双模态响应系统 (Dual-Mode Response)
-
-TripPal 采用“感性对话 + 理性规划”的混合交互模式：
-
-* **💬 自然语言交互 (Conversational)**:
-
-  * 像真人向导一样与您对话。
-  * 负责**意图确认**与**推荐理由阐述**（例如：“为您选择了这家酒店，因为它的性价比在市中心最高...”）。
-* **📊 结构化可视方案 (Structured)**:
-
-  * 将 AI 的思维转化为可落地的**交互式卡片**。
-  * 包含**每日行程时间轴**、**动态地图路径**以及**深度预算仪表盘**，拒绝长篇大论的文字堆砌。
 
 ### ⚠️ 数据源与演示说明 (Data Disclaimer)
 
@@ -82,19 +69,20 @@ graph TD
         PlanningFlow --> Flight[Flight Agent]
         PlanningFlow --> Hotel[Hotel Agent]
         PlanningFlow --> Route[Route Agent]
+      PlanningFlow --> Budget[Budget Agent]
     end
   
-    General & Flight & Hotel & Route --> Synthesis[Synthesis Agent]
-  
-    Synthesis -->|JSON + Text| HybridModel[Hybrid Response Model]
-    HybridModel --> UI[SwiftUI PlanResultView]
+    General & Flight & Hotel & Route & Budget --> Synthesis[Synthesis Agent]
+
+    Synthesis -->|JSON| StructuredModel[Structured Plan Model]
+    StructuredModel --> UI[SwiftUI PlanResultView]
 ```
 
 ### 核心模块说明
 
 1. **PlanningFlow**: 使用 `withThrowingTaskGroup` 实现任务的并行分发与状态管理。
 2. **ToolCallAgent**: 实现了基于 ReAct (Reasoning + Acting) 模式的 Base Agent，支持工具调用。
-3. **SynthesisAgent**: 负责将各路智能体的碎片化信息整合成符合 JSON Schema 的结构化数据。
+3. **SynthesisAgent**: 负责将各路智能体的碎片化信息整合成符合 JSON Schema 的结构化数据，用于卡片渲染。
 
 ---
 
@@ -151,7 +139,7 @@ TravelMasterPro/
 
 ### 1. 智能聊天与意图识别
 
-支持自然语言交互、多轮对话与用户意图的精准识别。
+支持自然语言交互、多轮对话与用户意图识别路由。
 
 |                          |                                        |
 | :-----------------------: | -------------------------------------- |
@@ -168,11 +156,11 @@ TravelMasterPro/
 
 ### 3. 地图规划与高级功能
 
-支持在地图上自由规划路线、识别地点以及解析外部攻略链接。
+支持在地图上自由规划路线、导入文本行程并识别地点。
 
 |                                                |                                          |
 | :---------------------------------------------: | :--------------------------------------: |
-|  ![识别外部攻略](image/IdentificationGuide.png)  | ![识别地点](image/IdentifyScenicSpots.png) |
+|  ![导入文本行程](image/IdentificationGuide.png)  | ![识别地点](image/IdentifyScenicSpots.png) |
 | ![生成行程](image/TheItineraryInTheGuidebook.png) |   ![自定义行程](image/CustomRoute1.png)   |
 |       ![自定义行程](image/CustomRoute2.png)       |                                          |
 
